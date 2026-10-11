@@ -1,4 +1,4 @@
-"""Unit and behaviour tests for the LUOTSI core. Run: pytest -q core/tests"""
+"""Unit and behaviour tests for the TREC-SAR core. Run: pytest -q core/tests"""
 import sys
 from pathlib import Path
 
@@ -7,8 +7,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from luotsi_core import SCENARIOS, Belief, Detector, LinkModel, World, build, prior_map, run  # noqa: E402
-from luotsi_core.planner import PLANNERS, PathOracle, PlanContext  # noqa: E402
+from trecsar_core import SCENARIOS, Belief, Detector, LinkModel, World, build, prior_map, run  # noqa: E402
+from trecsar_core.planner import PLANNERS, PathOracle, PlanContext  # noqa: E402
 
 KEYS = list(SCENARIOS)
 
@@ -134,8 +134,8 @@ def test_planners_return_valid_paths(worlds, name):
 # --- whole mission -----------------------------------------------------------------
 @pytest.mark.parametrize("key", KEYS)
 def test_runs_are_deterministic(worlds, key):
-    a = run(worlds[key], "luotsi", 7)
-    b = run(worlds[key], "luotsi", 7)
+    a = run(worlds[key], "trecsar", 7)
+    b = run(worlds[key], "trecsar", 7)
     assert (a.success, a.time_report_s, a.relays_used) == (b.success, b.time_report_s, b.relays_used)
 
 

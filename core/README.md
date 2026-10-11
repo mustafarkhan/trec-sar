@@ -1,3 +1,3 @@
-# luotsi-core
+# trecsar-core
 
-Pure-Python core of LUOTSI: probability map, radio link model, planners and mission simulator. See the repository README.
+Pure-Python core of TREC-SAR: probability map, radio link model, planners and mission simulator. See the repository README.

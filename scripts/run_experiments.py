@@ -21,14 +21,14 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
 
-from luotsi_core import World, build, run  # noqa: E402
+from trecsar_core import World, build, run  # noqa: E402
 
-PLANNERS = ["lawnmower", "greedy_bayes", "greedy_sf", "luotsi"]
+PLANNERS = ["lawnmower", "greedy_bayes", "greedy_sf", "trecsar"]
 LABELS = {
     "lawnmower": "Lawnmower sweep + reactive relays",
     "greedy_bayes": "Probability-greedy + reactive relays",
     "greedy_sf": "Probability-greedy + planned link loss (ablation)",
-    "luotsi": "LUOTSI (link-aware, planned relays)",
+    "trecsar": "TREC-SAR (link-aware, planned relays)",
 }
 EVAL_SEED0 = 1000
 
