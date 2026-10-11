@@ -1,0 +1,28 @@
+{
+  "dataset": "HIT-UAV (Suo et al., Scientific Data 10:227, 2023), Person class only",
+  "model": "YOLO11n (Ultralytics), COCO-pretrained, fine-tuned",
+  "epochs": 25,
+  "imgsz": 640,
+  "device": "CPU (x86_64)",
+  "train_minutes": 220.0,
+  "split": "test",
+  "results": {
+    "conf_0.25": {
+      "precision": 0.88,
+      "recall": 0.877,
+      "mAP50": 0.901,
+      "mAP50_95": 0.471
+    },
+    "conf_0.1": {
+      "precision": 0.88,
+      "recall": 0.877,
+      "mAP50": 0.907,
+      "mAP50_95": 0.478
+    }
+  },
+  "images": {
+    "train": 2029,
+    "val": 290,
+    "test": 579
+  }
+}
