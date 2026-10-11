@@ -1,5 +1,7 @@
 # TREC-SAR — from a fielded army UGV to civilian search and rescue
 
+[![ci](https://github.com/mustafarkhan/trec-sar/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafarkhan/trec-sar/actions/workflows/ci.yml)
+
 This repository continues **TREC**, a tele-operated tracked ground robot I worked on as an engineer in the
 Pakistan Army's Corps of Electrical & Mechanical Engineers (EME), and rebuilds its ideas for civilian search and
 rescue with modern open-source robotics.
