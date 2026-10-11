@@ -82,7 +82,7 @@ Put TREC first: it is the fielded system. TREC-SAR shows what you can build toda
 > known point. I wrote them all down in an FMEA table. Simulation is a starting point, not evidence.
 
 **Day 7 — open invitation**
-> TREC-SAR is open source (Apache-2.0). If you work in rescue services, rescue robotics, or radio for difficult
+> TREC-SAR is open source (MIT). If you work in rescue services, rescue robotics, or radio for difficult
 > environments in Finland or the Nordics, I'd value 20 minutes of your criticism.
 
 *Before posting the TREC photos: they show identifiable officers and weapon payloads. Crop to the robot, or describe

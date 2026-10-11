@@ -560,7 +560,7 @@ def github_scenes():
             ("pip install -e core  ·  pytest  ·  python3 scripts/run_experiments.py", 18, INK2, "normal", 0.64, 0.1),
             ("ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter", 18, INK2, "normal", 0.58, 0.15),
             (REPO, 26, BLUE, "bold", 0.44, 0.25),
-            (f"{AUTHOR}  ·  Apache-2.0", 18, INK, "bold", 0.16, 0.35),
+            (f"{AUTHOR}  ·  MIT", 18, INK, "bold", 0.16, 0.35),
         ], 7.0, "end"),
     ]
 

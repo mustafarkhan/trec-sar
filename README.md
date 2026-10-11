@@ -151,4 +151,4 @@ calibration. The 3D stack uses a ground-truth pose shortcut and has not been tes
 
 ## License
 
-Apache-2.0. Datasets keep their own licences.
+MIT. Datasets keep their own licences.
