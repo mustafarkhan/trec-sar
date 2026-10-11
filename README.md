@@ -11,7 +11,7 @@ rescue with modern open-source robotics.
 
 ![Mission replay: link-unaware search vs TREC-SAR in the winter forest](media/trec-sar_replay.gif)
 
-**Video walkthrough (2 min):** [`media/trec-sar_github.mp4`](media/trec-sar_github.mp4) — the original project, how the
+**Videos:** [command-line walkthrough (1 min)](media/trec-sar_cli_demo.mp4) · **project walkthrough (2 min):** [`media/trec-sar_github.mp4`](media/trec-sar_github.mp4) — the original project, how the
 planner decides, three scenario replays, results, ablation and limits. Every map frame is a recorded simulation run.
 
 ## Part 1 — TREC: the original project

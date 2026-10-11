@@ -19,4 +19,5 @@ All notable changes to this project are documented here. The format follows
 - Perception pipeline: VOC→YOLO converter and Colab notebook for thermal person detection on HIT-UAV.
 - CI: ruff, tests on Python 3.10–3.13 with coverage, CLI smoke tests, ROS 2 build and an end-to-end headless
   mission test.
-- Videos and figures rendered from recorded simulation runs.
+- Videos and figures rendered from recorded simulation runs, and a command-line walkthrough video whose terminal
+  output is captured from real commands at render time (`scripts/make_cli_video.py`).
