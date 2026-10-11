@@ -37,12 +37,15 @@ def _setup(context):
             "cameras": LaunchConfiguration("cameras").perform(context),
         }.items(),
     )
-    slam = Node(
-        package="slam_toolbox",
-        executable="async_slam_toolbox_node",
-        name="slam_toolbox",
-        output="screen",
-        parameters=[os.path.join(bringup, "config", "slam_params.yaml")],
+    # slam_toolbox is a lifecycle node on Jazzy: its own launch file configures and activates it
+    slam = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory("slam_toolbox"), "launch", "online_async_launch.py")
+        ),
+        launch_arguments={
+            "use_sim_time": "true",
+            "slam_params_file": os.path.join(bringup, "config", "slam_params.yaml"),
+        }.items(),
     )
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(bringup, "launch", "nav2.launch.py")),
