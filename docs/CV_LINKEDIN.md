@@ -97,3 +97,26 @@ it instead of showing the poster.*
 4. **What I'd do with hardware** — radio site survey, thermal detection tests under spruce, battery logs in cold;
    replace each placeholder model with measured data.
 5. **TREC → TREC-SAR** — same hull spec, but the link failsafe went from a warning LED to a planning constraint.
+
+## Video post (attach `media/trec-sar_linkedin.mp4`)
+
+> Years ago, as an engineer officer in the Pakistan Army's EME corps, I worked on TREC: an 80 kg tracked,
+> reconfigurable ground robot. We demonstrated it to the Corps Commander and delivered the prototype to a brigade
+> for field trials.
+>
+> Now I've rebuilt the idea for civilian search and rescue, fully open source.
+>
+> The core insight: a rescue robot that finds a missing person while out of radio range hasn't helped anyone yet.
+> TREC-SAR plans the search and the radio network together — where to look, where to drop relays, and when to
+> accept a short, planned loss of signal.
+>
+> In 4,000 simulated missions it raised forest-search success from about 40 % to 60 % while using half the relays.
+> The video shows two real simulation runs: same forest, same missing person.
+>
+> Simulation, not field data — the repo lists every assumption and limitation.
+> Code: github.com/mustafarkhan/trec-sar
+>
+> #robotics #searchandrescue #ROS2 #UGV #drones #engineering
+
+Post it as a native video (upload the MP4, don't paste a link) and put the GitHub link in the first comment;
+LinkedIn shows link-free posts to more people.

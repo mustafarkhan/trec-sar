@@ -4,6 +4,11 @@ This repository continues **TREC**, a tele-operated tracked ground robot I worke
 Pakistan Army's Corps of Electrical & Mechanical Engineers (EME), and rebuilds its ideas for civilian search and
 rescue with modern open-source robotics.
 
+![Mission replay: link-unaware search vs TREC-SAR in the winter forest](media/trec-sar_replay.gif)
+
+**Video walkthrough (2 min):** [`media/trec-sar_github.mp4`](media/trec-sar_github.mp4) — the army project, how the
+planner decides, three scenario replays, results, ablation and limits. Every map frame is a recorded simulation run.
+
 ## Part 1 — TREC: the original army project
 
 **TREC (Tele-operated, Tracked, Reconfigurable UGV)** · Department of Mechatronics, College of Electrical &
@@ -22,7 +27,10 @@ Mechanical Engineering, National University of Sciences and Technology (NUST), P
 - Prototype with manipulator delivered to 212 Brigade for field trials and testing.
 - Payload live-fire testing at an EME workshop.
 
-*Photos of the original project board are available on request.*
+<p>
+  <img src="docs/media/trec_robot.jpg" alt="TREC tracked UGV with manipulator" height="170">
+  <img src="docs/media/trec_mine_detector.jpg" alt="TREC with land-mine detector payload" height="170">
+</p>
 
 ## Part 2 — TREC-SAR: the civilian successor (independent project, 2026)
 
@@ -84,7 +92,8 @@ Full tables with 95 % confidence intervals: [`results/summary.md`](results/summa
 ```
 core/            trecsar_core: terrain, Bayesian probability map, radio link model, detector model,
                  planners, mission simulator, live-robot mission logic   (pure Python, tested)
-scripts/         run_experiments.py (Monte Carlo), make_figures.py
+scripts/         run_experiments.py (Monte Carlo), make_figures.py, make_videos.py (mission replays → MP4)
+media/           LinkedIn and GitHub videos, README GIF
 results/         summary.md, results.csv, figures
 ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimensions)
                  trecsar_gazebo       Gazebo Harmonic worlds generated from the same scenarios
@@ -104,6 +113,7 @@ pip install numpy scipy matplotlib pytest
 pytest -q core/tests                          # 29 tests (+1 in ros2_ws)
 python3 scripts/run_experiments.py --runs 200 # writes results/
 python3 scripts/make_figures.py
+python3 scripts/make_videos.py --which both   # needs ffmpeg; ~10 min
 ```
 
 **3D demo (Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image):** see [`docs/RUNNING.md`](docs/RUNNING.md).
