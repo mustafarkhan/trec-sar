@@ -124,6 +124,9 @@ def generate(key: str, seed: int, tree_seed: int = 0) -> str:
         trees = f"<model name='trees'><static>true</static><link name='l'>{''.join(tparts)}</link></model>"
 
     plume = ""
+    # The plume is painted on the ground, 2 cm thick: Gazebo's gpu_lidar ray-casts against
+    # visuals, so a translucent 2 m volume (the earlier version) looked like a solid wall to
+    # the lidar and Nav2 refused to drive into the plume area.
     if "gas plume (no humans)" in t.labels:
         pm = t.labels["gas plume (no humans)"]
         pp = []
@@ -136,13 +139,13 @@ def generate(key: str, seed: int, tree_seed: int = 0) -> str:
                         f"p{r}_{c0}",
                         (x0 + x1) / 2,
                         y,
-                        1.0,
+                        0.01,
                         (c1 - c0) * res,
                         res,
-                        2.0,
+                        0.02,
                         (0.95, 0.85, 0.3),
                         collide=False,
-                        alpha=0.18,
+                        alpha=0.6,
                     )
                 )
         plume = f"<model name='gas_plume'><static>true</static><link name='l'>{''.join(pp)}</link></model>"
