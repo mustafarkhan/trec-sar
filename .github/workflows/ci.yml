@@ -1,0 +1,32 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e "core[viz,test]" xacro pyyaml
+      - name: Unit and behaviour tests
+        run: pytest -q core/tests ros2_ws/src/luotsi_mission/test
+      - name: URDF expands
+        run: xacro ros2_ws/src/luotsi_description/urdf/luotsi.urdf.xacro > /dev/null
+      - name: Worlds regenerate identically
+        run: |
+          python3 ros2_ws/src/luotsi_gazebo/scripts/terrain_to_sdf.py forest_winter --seed 1002 -o /tmp/f.sdf
+          diff -q /tmp/f.sdf ros2_ws/src/luotsi_gazebo/worlds/forest_winter.sdf
+      - name: Smoke experiment
+        run: python3 scripts/run_experiments.py --runs 5 --out /tmp/results
+  ros2:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update && apt-get install -y python3-scipy python3-pip
+      - run: pip install --break-system-packages -e core
+      - run: |
+          . /opt/ros/jazzy/setup.sh
+          cd ros2_ws
+          rosdep update && rosdep install --from-paths src -y --ignore-src || true
+          colcon build
