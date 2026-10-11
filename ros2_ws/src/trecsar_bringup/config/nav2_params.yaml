@@ -31,7 +31,7 @@ controller_server:
       movement_time_allowance: 15.0
     goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 1.5          # search goals are 4-6 m cells; no need for precision
+      xy_goal_tolerance: 2.5          # waypoints are 4-6 m cells; no need for precision
       yaw_goal_tolerance: 3.14
       stateful: true
     FollowPath:
@@ -93,13 +93,15 @@ global_costmap:
       publish_frequency: 1.0
       global_frame: map
       robot_base_frame: base_footprint
-      resolution: 0.2
-      track_unknown_space: true
+      # Rolling window: search goals lie in unexplored ground, so the global costmap must
+      # not be clipped to the SLAM map. The mission manager feeds waypoints <= ~60 m apart.
+      rolling_window: true
+      width: 160
+      height: 160
+      resolution: 0.25
+      track_unknown_space: false
       footprint: "[[0.45, 0.28], [0.45, -0.28], [-0.45, -0.28], [-0.45, 0.28]]"
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
-      static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: true
+      plugins: ["obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true

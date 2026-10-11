@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 
 import rclpy
+from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PointStamped, PoseStamped
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import OccupancyGrid
@@ -38,6 +39,7 @@ class MissionManager(Node):
         self.declare_parameter("spawn_x", 27.0)
         self.declare_parameter("spawn_y", 15.0)
         self.declare_parameter("tick_hz", 1.0)
+        self.declare_parameter("segment_m", 60.0)  # route handed to Nav2 in segments of this length
         scenario = self.get_parameter("scenario").value
         self.world = get_world(scenario)
         self.t = self.world.sc.terrain
@@ -48,6 +50,9 @@ class MissionManager(Node):
         self.goal_handle = None
         self.goal_reached = True
         self.dropping_until = None
+        self.route: list[int] = []  # remaining waypoints (cells); last one is the mission goal
+        self.segment_failures = 0
+        self.segment_m = float(self.get_parameter("segment_m").value)
 
         self.pub_state = self.create_publisher(String, "/trecsar/state", 10)
         self.pub_report = self.create_publisher(String, "/trecsar/report", 10)
@@ -98,36 +103,68 @@ class MissionManager(Node):
                 self.get_logger().info(f"state -> {arg}")
 
     def send_goal(self, cell: int):
+        """Plan a terrain route to `cell` and hand it to Nav2 one segment at a time.
+
+        The mission planner knows the whole site; Nav2 only knows what the lidar has
+        seen. Feeding Nav2 waypoints ~segment_m apart along the terrain route keeps
+        every goal inside Nav2's rolling costmap while the mission planner owns the
+        long-range decision.
+        """
         if not self.nav.wait_for_server(timeout_sec=0.5):
             self.get_logger().warn("Nav2 not ready yet")
             self.goal_reached = True
             return
         self.cancel_goal()  # one goal at a time
-        x, y = self.t.cell_to_xy(self.t.rc(cell))
+        start = self.core.pos if self.core.pos >= 0 else self.t.idx(self.t.base)
+        _, pred = self.world.oracle.from_cell(start)
+        path = self.world.oracle.path(pred, start, cell) or [start, cell]
+        step = max(1, int(self.segment_m / self.t.resolution))
+        self.route = path[step::step]
+        if not self.route or self.route[-1] != cell:
+            self.route.append(cell)
+        self.segment_failures = 0
+        self.goal_reached = False
+        self._send_next_segment()
+
+    def _send_next_segment(self):
+        if not self.route:
+            self.goal_reached = True
+            return
+        x, y = self.t.cell_to_xy(self.t.rc(self.route[0]))
         goal = NavigateToPose.Goal()
         goal.pose.header.frame_id = "map"
         goal.pose.header.stamp = self.get_clock().now().to_msg()
         goal.pose.pose.position.x = x - self.spawn[0]
         goal.pose.pose.position.y = y - self.spawn[1]
         goal.pose.pose.orientation.w = 1.0
-        self.goal_reached = False
         fut = self.nav.send_goal_async(goal)
         fut.add_done_callback(self._accepted)
 
     def _accepted(self, fut):
         handle = fut.result()
         if not handle.accepted:
+            self.route = []
             self.goal_reached = True
             return
         self.goal_handle = handle
 
-        def done(_f, h=handle):
-            if self.goal_handle is h:  # ignore results of preempted / cancelled goals
+        def done(f, h=handle):
+            if self.goal_handle is not h:  # ignore results of preempted / cancelled goals
+                return
+            if f.result().status != GoalStatus.STATUS_SUCCEEDED:
+                self.segment_failures += 1
+            if self.route:
+                self.route.pop(0)
+            if self.route and self.segment_failures < 3:
+                self._send_next_segment()
+            else:
+                self.route = []
                 self.goal_reached = True
 
         handle.get_result_async().add_done_callback(done)
 
     def cancel_goal(self):
+        self.route = []
         if self.goal_handle is not None:
             self.goal_handle.cancel_goal_async()
             self.goal_handle = None
