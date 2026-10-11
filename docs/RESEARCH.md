@@ -14,6 +14,8 @@ TREC-SAR stands on established work. This page says what is borrowed, what is ne
 | Aerial person detection for SAR | Božić-Štulić et al., HERIDAL, *IJCV* 2019; Pyrrö, Naseri & Jung, "Rethinking Drone-Based Search and Rescue with Aerial Person Detection", arXiv:2111.09406 (Aalto University / Accenture) | Drone detector and SAR-specific evaluation |
 | Thermal drone dataset | Suo et al., "HIT-UAV", *Scientific Data* 10:227 (2023) | Training the aerial person detector |
 | Vegetation radio attenuation | ITU-R Recommendation P.833 | Order of magnitude of forest attenuation |
+| Predicting the channel from robot-collected samples | M. Malmirchegini & Y. Mostofi, "On the spatial predictability of communication channels", *IEEE Trans. Wireless Communications* 11(3), 2012; J. Fink & V. Kumar, "Online methods for radio signal mapping with mobile robots", ICRA 2010 | Online calibration of path loss and per-terrain attenuation |
+| Bayesian linear regression | C. M. Bishop, *Pattern Recognition and Machine Learning* (2006), §3.3 | Closed-form posterior over radio parameters, prior = planning model |
 
 ## What TREC-SAR adds
 
@@ -22,8 +24,12 @@ TREC-SAR stands on established work. This page says what is borrowed, what is ne
 2. **Planned link-loss windows** ("store and forward") as an explicit planning option with a time budget, so the
    failsafe protects the robot from *unplanned* loss without stopping deliberate excursions.
 3. **Time-to-report as the outcome metric**, with an ablation that separates the two ideas above.
-4. **An open, reproducible civilian benchmark**: three operational scenarios, four policies, held-out seeds,
-   confidence intervals, and a 3D world generated from the same terrain.
+4. **Online radio calibration feeding the search planner**: signal-strength readings update the path-loss exponent
+   and per-terrain attenuation during the mission, and relay placement and link-loss windows use the updated model.
+   Under a radio 1.8× worse than planned this cuts failsafe trips 3.4× and median time-to-report from 54 to 37 min.
+5. **An open, reproducible civilian benchmark**: three operational scenarios plus stress variants (fewer relays,
+   wrong last-known point, wrong radio model), five policies, held-out seeds, confidence intervals, and a 3D
+   Gazebo world generated from the same terrain in which the full mission is run in CI.
 
 Communication-aware planning is an active research area in multi-robot exploration; TREC-SAR does not claim to be
 the first to consider radio in planning. The contribution is the specific SAR combination and the open benchmark.

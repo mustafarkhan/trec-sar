@@ -93,3 +93,24 @@ def test_failed_navigation_goal_is_not_reissued_immediately():
     core.on_nav_failed(now=11.0)
     second = core.tick(now=12.0, goal_reached=True)
     assert second and core._plan_goal != goal
+
+
+def test_live_mission_calibrates_radio_from_link_readings():
+    from trecsar_core import World, build
+    from trecsar_core.mission import MissionCore
+
+    sc = build("forest_winter")
+    sc.radio_truth = {"rf_scale": 1.8, "exponent": 2.4}
+    w = World(sc)
+    core = MissionCore(w, planner_name="trecsar_cal")
+    t = sc.terrain
+    prior_cov = core.coverage.copy()
+    for r in range(60, 96):
+        for c in range(2, 40, 3):
+            if t.passable[r, c]:
+                core.on_pose(t.idx((r, c)))
+                core.on_link(float(w.link_truth.margin_map(t.base)[r, c]), now=0.0)
+    n, _ = core.calibrator.estimate()
+    assert n > 2.3  # moved from the 2.2 prior towards the true 2.4
+    # the robot now expects less coverage than the optimistic prior promised
+    assert (core.coverage >= 10).sum() < (prior_cov >= 10).sum()

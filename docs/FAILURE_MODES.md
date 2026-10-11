@@ -25,10 +25,13 @@ Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
   location and detection luck.
 - **Weights were tuned** on seeds 100–159 and evaluated on seeds 1000–1199. Tuning was light (a handful of
   settings), and the ablation was run with the same care so the comparison is fair.
-- **3D stack:** the ROS 2 packages are written against Jazzy + Gazebo Harmonic APIs and syntax-checked, and the
-  mission logic they wrap is unit-tested. CI builds all packages on ROS 2 Jazzy and runs the full mission stack
-  end to end with a headless stand-in robot; the Gazebo + Nav2 launch has not been run in CI.
-  Expect to tune Nav2 and the bridge on first run (see RUNNING.md).
+- **3D stack:** CI runs the full mission in Gazebo Harmonic with Nav2 and requires a delivered casualty report.
+  That run uses ground-truth localisation; with `localization:=slam`, slam_toolbox can drift in the wide,
+  feature-poor yard, and that mode is not gated in CI. Gazebo's lidar sees *visual* geometry, so decorative
+  volumes (the plume) must stay below the scan plane; a test enforces this.
+- **Radio calibration** learns only what the robot can hear: classes the robot never has a link through (for
+  example behind the granite ridge) stay at the prior value. Readings are treated as independent, which ignores
+  spatially correlated shadowing, so the model can be overconfident.
 
 ## Ethics and dual use
 

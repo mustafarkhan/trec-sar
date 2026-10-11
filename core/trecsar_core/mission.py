@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .belief import Belief
+from .calibrate import RadioCalibrator
 from .planner import PLANNERS, PlanContext
 from .sim import World
 
@@ -39,6 +40,9 @@ class MissionCore:
     _detected_at: int | None = None
     _taboo: list = field(default_factory=list)
     _recovery_tried: list = field(default_factory=list)
+    calibrate_radio: bool = False  # learn the radio model from /link/margin_db readings
+    _last_obs_pos: int = -1
+    _obs_since_fit: int = 0
 
     def __post_init__(self):
         t = self.world.sc.terrain
@@ -48,7 +52,26 @@ class MissionCore:
         self.belief = Belief(self.world.prior, 1.0 - self.world.prior.sum())
         self.nodes = [t.base]
         self.relays_left = self.m.relays
+        self.calibrator = (
+            RadioCalibrator(self.world.link) if (self.calibrate_radio or self.planner_name == "trecsar_cal") else None
+        )
         self.coverage = self.world.link.coverage(self.nodes)
+
+    def _refresh_coverage(self) -> None:
+        self.coverage = self.planner.link.coverage(self.nodes)
+
+    def _observe_link(self, margin_db: float) -> None:
+        """One signal-strength reading per visited cell; refit the radio model every 25 cells."""
+        if self.calibrator is None or self.pos < 0 or self.pos == self._last_obs_pos:
+            return
+        self._last_obs_pos = self.pos
+        rc = self.t.rc(self.pos)
+        node = max(self.nodes, key=lambda n: self.planner.link.margin_map(n)[rc])  # strongest neighbour
+        self._obs_since_fit += self.calibrator.observe(node, rc, margin_db)
+        if self._obs_since_fit >= 25:
+            self._obs_since_fit = 0
+            self.planner.link = self.calibrator.model()
+            self._refresh_coverage()
 
     # ---- inputs -------------------------------------------------------------------
     def on_pose(self, cell: int) -> None:
@@ -60,6 +83,7 @@ class MissionCore:
 
     def on_link(self, margin_db: float, now: float) -> list:
         self.margin_db = margin_db
+        self._observe_link(margin_db)
         cmds = []
         if margin_db >= self.m.link_threshold_db:
             self._out_since = None
@@ -101,7 +125,7 @@ class MissionCore:
     def on_relay_deployed(self, cell: int) -> None:
         self.nodes.append(self.t.rc(cell))
         self.relays_left -= 1
-        self.coverage = self.world.link.coverage(self.nodes)
+        self._refresh_coverage()
         self._relay_at = None
         self._plan_goal = None
 

@@ -79,4 +79,4 @@ def test_cli_bad_site_path_exits_with_error(capsys):
 def test_benchmark_api_writes_results(tmp_path):
     summary = run_benchmark(runs=2, workers=1, out=tmp_path, variant_keys=["hazmat_industrial"])
     assert (tmp_path / "results.csv").exists() and (tmp_path / "summary.md").exists()
-    assert {s["planner"] for s in summary} == {"lawnmower", "greedy_bayes", "greedy_sf", "trecsar"}
+    assert {s["planner"] for s in summary} == {"lawnmower", "greedy_bayes", "greedy_sf", "trecsar", "trecsar_cal"}

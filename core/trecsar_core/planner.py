@@ -280,6 +280,14 @@ class TrecSarPlanner(GreedyBayesPlanner):
         return super().plan(ctx)
 
 
+class TrecSarCalibratedPlanner(TrecSarPlanner):
+    """TREC-SAR whose radio model is calibrated online from signal-strength readings
+    (trecsar_core.calibrate). The simulator swaps `self.link` as the estimate improves."""
+
+    name = "trecsar_cal"
+    calibrates = True
+
+
 class GreedyStoreForwardPlanner(GreedyBayesPlanner):
     """Ablation: greedy goal choice + planned link-loss windows, but reactive relays.
 
@@ -302,4 +310,7 @@ class GreedyStoreForwardPlanner(GreedyBayesPlanner):
         return p
 
 
-PLANNERS = {p.name: p for p in (LawnmowerPlanner, GreedyBayesPlanner, GreedyStoreForwardPlanner, TrecSarPlanner)}
+PLANNERS = {
+    p.name: p
+    for p in (LawnmowerPlanner, GreedyBayesPlanner, GreedyStoreForwardPlanner, TrecSarPlanner, TrecSarCalibratedPlanner)
+}

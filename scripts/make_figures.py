@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import sys
+import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -26,9 +27,16 @@ from trecsar_core.bench import PLANNERS, variants  # noqa: E402
 
 OUT = ROOT / "results"
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
-COLOR = {"trecsar": "#2a78d6", "greedy_sf": "#eb6834", "greedy_bayes": "#1baf7a", "lawnmower": "#eda100"}
+COLOR = {
+    "trecsar_cal": "#7b4fd6",
+    "trecsar": "#2a78d6",
+    "greedy_sf": "#eb6834",
+    "greedy_bayes": "#1baf7a",
+    "lawnmower": "#eda100",
+}
 SHORT = {
     "trecsar": "TREC-SAR",
+    "trecsar_cal": "TREC-SAR + radio calibration",
     "greedy_sf": "Greedy + planned link loss",
     "greedy_bayes": "Greedy + reactive relays",
     "lawnmower": "Lawnmower + reactive relays",
@@ -61,7 +69,7 @@ def load():
 
 def success_and_relays(rows):
     vs = variants()
-    fig, axes = plt.subplots(2, len(vs), figsize=(17, 6.4), sharey="row")
+    fig, axes = plt.subplots(2, len(vs), figsize=(20, 6.8), sharey="row")
     order = list(reversed(PLANNERS))  # TREC-SAR on top
     for j, (vkey, (vtitle, _)) in enumerate(vs.items()):
         for i, metric in enumerate(("success", "relays_used")):
@@ -87,7 +95,7 @@ def success_and_relays(rows):
             if metric == "success":
                 ax.set_xlim(0, 1.18)
                 ax.xaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-                ax.set_title(vtitle, fontsize=10)
+                ax.set_title(textwrap.fill(vtitle, 26), fontsize=10)
             else:
                 ax.set_xlim(0, 3.6)
         axes[0, 0].set_ylabel("Casualty reported\nwithin time limit", fontsize=9)

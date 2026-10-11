@@ -1,6 +1,7 @@
 # TREC-SAR — from a fielded army UGV to civilian search and rescue
 
 [![ci](https://github.com/mustafarkhan/trec-sar/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafarkhan/trec-sar/actions/workflows/ci.yml)
+[![3D mission (Gazebo + Nav2)](https://github.com/mustafarkhan/trec-sar/actions/workflows/sim3d.yml/badge.svg)](https://github.com/mustafarkhan/trec-sar/actions/workflows/sim3d.yml)
 ![Python](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue)
 ![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy-22314E)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -67,13 +68,14 @@ where to drop relay nodes, and when to accept a planned, time-bounded link loss.
 200 held-out simulated missions per policy per scenario (seeds never used for tuning), same casualty location and
 detection luck for every policy. Success = casualty reported to the command post within the time limit.
 
-| Scenario | Lawnmower + reactive relays | Greedy + reactive relays | Greedy + planned link loss *(ablation)* | **TREC-SAR** | Relays used (best baseline → TREC-SAR) |
-|---|---|---|---|---|---|
-| Boreal forest, winter, 3 relays | 36 % | 42 % | 63 % | **60 %** | 2.4 → **1.2** |
-| Forest, only 1 relay | 23 % | 50 % | 62 % | **61 %** | 1.0 → **0.7** |
-| Forest, wrong last-known point (~95 m) | 32 % | 39 % | 60 % | **56 %** | 2.5 → **1.3** |
-| Tunnel after rock fall | 90 % | 94 % | 98 % | **98 %** | 2.8 → **0.2** |
-| Industrial chemical release | 88 % | 96 % | 98 % | **98 %** | 1.2 → **0.9** |
+| Scenario | Lawnmower + reactive relays | Greedy + reactive relays | Greedy + planned link loss *(ablation)* | **TREC-SAR** | **TREC-SAR + radio calibration** | Relays used (ablation → TREC-SAR → +calibration) |
+|---|---|---|---|---|---|---|
+| Boreal forest, winter, 3 relays | 36 % | 42 % | 63 % | **60 %** | **64 %** | 2.4 → **1.2** → 1.6 |
+| Forest, only 1 relay | 23 % | 50 % | 62 % | **61 %** | **62 %** | 1.0 → **0.7** → 0.7 |
+| Forest, wrong last-known point (~95 m) | 32 % | 39 % | 60 % | **56 %** | **58 %** | 2.5 → **1.3** → 1.8 |
+| Forest, radio 1.8× worse than planned | 22 % | 39 % | 61 % | **57 %** | **62 %** | 2.7 → 2.0 → **0.7** |
+| Tunnel after rock fall | 90 % | 94 % | 98 % | **98 %** | **98 %** | 2.8 → **0.2** → 0.2 |
+| Industrial chemical release | 88 % | 96 % | 98 % | **98 %** | **98 %** | 1.2 → **0.9** → 0.9 |
 
 Full tables with 95 % confidence intervals: [`results/summary.md`](results/summary.md).
 
@@ -91,6 +93,48 @@ Full tables with 95 % confidence intervals: [`results/summary.md`](results/summa
    with a wrong last-known point TREC-SAR is slightly behind the ablation (confidence intervals overlap).
 
 ![Time to report](results/time_to_report.png)
+
+### Online radio calibration (new in 0.2)
+
+Every planner above trusts a radio model whose numbers are guesses. On a real site they will be wrong — wet snow
+on spruce, a steel structure, a different antenna. TREC-SAR 0.2 **learns the site's radio while it searches**: every
+signal-strength reading the robot already receives is one equation of the link model, and a closed-form Bayesian
+regression (prior = the planning numbers) updates the path-loss exponent and the attenuation of every terrain class
+([`core/trecsar_core/calibrate.py`](core/trecsar_core/calibrate.py)). Coverage predictions, relay placement and
+link-loss windows then use the calibrated model. Readings below receiver sensitivity are ignored, so the model only
+moves where the radio can actually be heard.
+
+Stress test: the real radio is 1.8× more attenuating than planned (path-loss exponent 2.4 instead of 2.2). In
+simulation the estimate converges to 0.20 dB/m for dense spruce (true 0.216) and an exponent of 2.45 (true 2.4).
+Over 200 held-out missions:
+
+| Forest, radio 1.8× worse than planned | Success | Median time to report | Failsafe trips | Relays used |
+|---|---|---|---|---|
+| Greedy + planned link loss *(ablation)* | 61 % | 41 min | 2.7 | 2.7 |
+| TREC-SAR with the planning model | 57 % | 54 min | 9.6 | 2.0 |
+| **TREC-SAR + online radio calibration** | **62 %** | **37 min** | **2.8** | **0.7** |
+
+Calibration does not change the success rate within the confidence intervals. What it fixes is behaviour: the
+uncalibrated robot keeps planning into coverage that does not exist and trips the link-loss failsafe 3.4× as often.
+The calibrated robot reports 17 min sooner at the median and uses a quarter of the relays the ablation needs. The
+same logic runs on the live robot: `MissionCore` calibrates from `/link/margin_db` with `planner:=trecsar_cal`.
+
+### Thermal person detector (measured)
+
+A YOLO11n detector fine-tuned on the open **HIT-UAV** drone thermal dataset (Suo et al., *Scientific Data* 2023),
+person class only, trained and evaluated unattended in GitHub Actions on CPU
+([`perception.yml`](.github/workflows/perception.yml), [`perception/train_ci.py`](perception/train_ci.py)).
+Numbers are on the **held-out test split (579 images)**, never seen in training:
+
+| Precision | Recall | mAP@0.5 | mAP@0.5:0.95 | Training |
+|---|---|---|---|---|
+| 0.88 | 0.88 | **0.90** | 0.47 | 25 epochs, 220 min on a CI CPU |
+
+![Detections on held-out thermal test images](results/perception/predictions.png)
+
+The weights ([`perception/weights/hituav_person_yolo11n.pt`](perception/weights/)) plug into the ROS 2
+`yolo_detector` node. HIT-UAV is aerial imagery, so this is the drone half of the team; a ground-level thermal
+dataset would be needed before trusting it on the UGV camera.
 
 ## Quick start
 
@@ -149,7 +193,11 @@ ros2 launch trecsar_bringup headless.launch.py scenario:=hazmat_industrial seed:
 ros2 topic echo --once /trecsar/report          # casualty report JSON
 ```
 
-**3D demo (Gazebo Harmonic + SLAM + Nav2 + RViz)** — Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image; see
+**3D mission (Gazebo Harmonic + Nav2)** — tested in CI ([`sim3d.yml`](.github/workflows/sim3d.yml)): the
+TREC-sized robot drives the industrial site in Gazebo, Nav2 follows the mission planner's route, and the run passes
+only if the casualty report reaches the command post. Latest run: about 330 m driven, drone cue fused, one relay
+deployed, one link-loss recovery, **casualty reported at 410 s with 1 relay**. CI uses ground-truth localisation;
+`localization:=slam` runs slam_toolbox instead. Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image; see
 [`docs/RUNNING.md`](docs/RUNNING.md):
 
 ```bash
@@ -160,8 +208,10 @@ ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter planner:=t
 
 | | |
 |---|---|
-| Tests | 38 unit, behaviour and CLI tests on Python 3.10–3.13, with coverage |
+| Tests | 56 unit, behaviour, calibration, world and CLI tests on Python 3.10–3.13, with coverage |
 | ROS 2 | All four packages built in CI on ROS 2 Jazzy; end-to-end headless mission must deliver a casualty report |
+| 3D | Gazebo Harmonic + Nav2 mission in CI must find the casualty and deliver the report |
+| Perception | Thermal person detector trained and evaluated in CI on HIT-UAV (held-out test mAP@0.5 0.90) |
 | Reproducibility | Fixed seeds; tuning seeds (100–159) separate from evaluation seeds (1000–1199); Gazebo worlds regenerated and diffed in CI |
 | Code style | `ruff` lint + format, pre-commit hooks |
 | Failure analysis | FMEA-style table of failure modes and limitations in [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md) |
@@ -180,7 +230,7 @@ ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimens
                  trecsar_mission      ROS 2 nodes: mission manager, radio-link simulator, drone stub, detectors,
                                       headless fake robot
                  trecsar_bringup      launch files: 3D (SLAM + Nav2 + RViz) and headless
-perception/      Colab notebook to train a thermal person detector on HIT-UAV; VOC→YOLO converter
+perception/      HIT-UAV thermal person detector: CI training script, Colab notebook, trained weights
 docs/            concept, scenarios (CONOPS), research basis, failure modes, running guide
 docker/          ROS 2 Jazzy + Gazebo container
 ```
@@ -201,15 +251,17 @@ Details: [`docs/CONCEPT.md`](docs/CONCEPT.md).
 Parts of it are well established, and the repository says so: Bayesian search theory (Koopman, Stone; the US Coast
 Guard's SAROPS), lost-person behaviour statistics (Koester), and relay "breadcrumbs" dropped by robots in the DARPA
 Subterranean Challenge. What TREC-SAR adds is the **combination**: relay placement and link-loss windows chosen from
-the *probability of finding the person*, evaluated on time-to-report rather than time-to-detect, packaged as an
+the *probability of finding the person*, with the radio model **calibrated online during the search** (methods
+from robot channel-estimation research), evaluated on time-to-report rather than time-to-detect, packaged as an
 open, reproducible benchmark for civilian SAR (forest, tunnel and hazmat). I have not found this exact combination
 in open source, but I make no claim that nobody has done it. See [`docs/RESEARCH.md`](docs/RESEARCH.md).
 
 ## Limitations
 
 All results are simulation. Radio, detection and lost-person parameters are plausible placeholders, not field
-calibration. The ROS 2 stack is built and exercised end to end in CI with a headless stand-in robot; the Gazebo +
-Nav2 configuration uses a ground-truth pose shortcut and has not been tested on hardware. TREC-SAR is not certified
+calibration (online calibration narrows the radio gap but starts from those placeholders). The ROS 2 stack runs end
+to end in CI both headless and in Gazebo + Nav2; the CI 3D run uses ground-truth localisation, and nothing has been
+tested on hardware. TREC-SAR is not certified
 for operational use. Full list:
 [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md).
 

@@ -8,8 +8,8 @@ abstract: >
 authors:
   - family-names: "Khan"
     given-names: "Mustafa R."
-version: 0.1.0
-date-released: 2026-10-11
+version: 0.2.0
+date-released: 2026-10-12
 license: MIT
 repository-code: "https://github.com/mustafarkhan/trec-sar"
 keywords:

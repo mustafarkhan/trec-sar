@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trecsar-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "Link-aware Bayesian search planning for search-and-rescue ground robots"
 authors = [{ name = "Mustafa R. Khan" }]
 keywords = ["search and rescue", "robotics", "ugv", "bayesian search", "ros2", "path planning"]
