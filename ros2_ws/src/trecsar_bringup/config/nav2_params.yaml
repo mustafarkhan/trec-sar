@@ -42,10 +42,10 @@ controller_server:
       max_lookahead_dist: 3.0
       use_velocity_scaled_lookahead_dist: true
       lookahead_time: 1.5
-      rotate_to_heading_angular_vel: 1.2
+      rotate_to_heading_angular_vel: 1.0
       use_rotate_to_heading: true       # skid steer can turn in place, as TREC did
       rotate_to_heading_min_angle: 0.6
-      max_angular_accel: 2.0
+      max_angular_accel: 3.2
       transform_tolerance: 0.2
       use_regulated_linear_velocity_scaling: true
       use_cost_regulated_linear_velocity_scaling: true
