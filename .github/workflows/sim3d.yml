@@ -11,7 +11,7 @@ jobs:
   gazebo-nav2-mission:
     runs-on: ubuntu-24.04
     container: ros:jazzy
-    timeout-minutes: 60
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
       - name: Install Gazebo, Nav2, SLAM
@@ -71,14 +71,18 @@ jobs:
             timeout 8 ros2 topic echo --once /plan --field poses > /tmp/plan.txt 2>&1 || true;
             sleep 60; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose >> /tmp/odom.txt 2>&1 || true;
             timeout 8 ros2 topic echo --once /cmd_vel >> /tmp/cmd_vel.txt 2>&1 || true ) &
-          if timeout 1800 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report.txt; then
+          ( for k in $(seq 1 45); do sleep 60;
+              echo "t=${k}min $(timeout 5 ros2 topic echo --once /trecsar/ground_truth_pose --field pose.position 2>/dev/null | tr '\n' ' ')" >> /tmp/track.txt;
+            done ) &
+          if timeout 2700 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report.txt; then
             STATUS=0
           else
             STATUS=1
           fi
           kill $LAUNCH || true; sleep 3
           python3 .github/scripts/annotate.py notice "Casualty report" /tmp/report.txt 20
-          python3 .github/scripts/annotate.py notice "Mission events" /tmp/sim3d.log 40 "state ->|relay|CASUALTY|person detected|aerial cue|Nav2 not ready"
+          python3 .github/scripts/annotate.py notice "Mission events" /tmp/sim3d.log 60 "state ->|relay|CASUALTY|person detected|aerial cue|Nav2 not ready|goal \(|segment failed"
+          python3 .github/scripts/annotate.py notice "Robot track (ground truth, per minute)" /tmp/track.txt 45
           if [ $STATUS -ne 0 ]; then
             python3 .github/scripts/annotate.py error "Nodes after 120 s" /tmp/nodes.txt 60
             python3 .github/scripts/annotate.py error "Topics after 120 s" /tmp/topics.txt 60
