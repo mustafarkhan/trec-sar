@@ -80,3 +80,16 @@ def test_link_recovery_retries_other_points_when_navigation_fails():
     assert first[0][1] != second[0][1]
     core.on_link(20.0, now=140.0)
     assert core.state == "SEARCH" and core._recovery_tried == []
+
+
+def test_failed_navigation_goal_is_not_reissued_immediately():
+    """Regression: an unreachable goal must go on the avoid list, not be retried in a tight loop."""
+    w = World(build("hazmat_industrial"))
+    core = MissionCore(w)
+    core.on_pose(w.sc.terrain.idx(w.sc.terrain.base))
+    first = core.tick(now=10.0, goal_reached=True)
+    assert first and first[-1][0] == "goto"
+    goal = core._plan_goal
+    core.on_nav_failed(now=11.0)
+    second = core.tick(now=12.0, goal_reached=True)
+    assert second and core._plan_goal != goal

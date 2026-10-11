@@ -28,6 +28,7 @@ setup(
             "sim_detector = trecsar_mission.sim_detector:main",
             "yolo_detector = trecsar_mission.yolo_detector:main",
             "fake_robot = trecsar_mission.fake_robot:main",
+            "gt_localizer = trecsar_mission.gt_localizer:main",
         ],
     },
 )

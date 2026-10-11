@@ -91,6 +91,13 @@ class MissionCore:
         self.belief.update_cue(rc, sig, reliability=0.6)
         self._plan_goal = None  # force a replan
 
+    def on_nav_failed(self, now: float) -> None:
+        """Navigation could not reach the current search goal: avoid it for 10 min and replan."""
+        if self._plan_goal is not None:
+            self._taboo.append((self._plan_goal, now + 600.0))
+        self._plan_goal = None
+        self._relay_at = None
+
     def on_relay_deployed(self, cell: int) -> None:
         self.nodes.append(self.t.rc(cell))
         self.relays_left -= 1

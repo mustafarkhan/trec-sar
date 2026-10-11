@@ -60,6 +60,9 @@ def _setup(context):
             parameters=[{"use_sim_time": True, "autostart": True, "node_names": ["slam_toolbox"]}],
         ),
     ]
+    if LaunchConfiguration("localization").perform(context) == "ground_truth":
+        slam = [Node(package="trecsar_mission", executable="gt_localizer", parameters=[common])]
+
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(bringup, "launch", "nav2.launch.py")),
         launch_arguments={
@@ -100,6 +103,11 @@ def generate_launch_description():
             DeclareLaunchArgument("scenario", default_value="forest_winter"),
             DeclareLaunchArgument("planner", default_value="trecsar"),
             DeclareLaunchArgument("rviz", default_value="true"),
+            DeclareLaunchArgument(
+                "localization",
+                default_value="slam",
+                description="slam (realistic) | ground_truth (simulation shortcut: tests mission + Nav2 without SLAM drift)",
+            ),
             DeclareLaunchArgument("headless", default_value="false", description="Gazebo server only (no GUI)"),
             DeclareLaunchArgument("cameras", default_value="true", description="simulate RGB + thermal cameras"),
             OpaqueFunction(function=_setup),

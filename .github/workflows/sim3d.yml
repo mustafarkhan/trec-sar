@@ -57,7 +57,7 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           source ros2_ws/install/setup.bash
           ros2 launch trecsar_bringup bringup.launch.py scenario:=hazmat_industrial \
-            headless:=true rviz:=false cameras:=false > /tmp/sim3d.log 2>&1 &
+            headless:=true rviz:=false cameras:=false localization:=ground_truth > /tmp/sim3d.log 2>&1 &
           LAUNCH=$!
           ( sleep 120; ros2 node list > /tmp/nodes.txt 2>&1 || true; ros2 topic list > /tmp/topics.txt 2>&1 || true;
             timeout 10 ros2 topic echo --once /trecsar/ground_truth_pose > /tmp/pose.txt 2>&1 || true;
