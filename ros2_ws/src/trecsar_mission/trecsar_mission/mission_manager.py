@@ -218,7 +218,10 @@ class MissionManager(Node):
             return True
         ref, t0 = self.last_move
         active = self.core.state in ("SEARCH", "LINK_RECOVERY", "REPORT", "RTH")
-        if active and ref is not None and now - t0 > self.stuck_after:
+        navigating = self.goal_handle is not None  # only when Nav2 accepted a goal and still holds it
+        if not navigating:
+            self.last_move = (self.xy, now)
+        if active and navigating and ref is not None and now - t0 > self.stuck_after:
             self.escape_count += 1
             self.get_logger().warn(f"no progress for {now - t0:.0f} s: escape manoeuvre #{self.escape_count}")
             self.cancel_goal()
