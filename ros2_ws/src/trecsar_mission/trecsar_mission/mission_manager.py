@@ -177,6 +177,8 @@ class MissionManager(Node):
                 self.send_goal(final)
                 self.segment_failures = failures
                 return
+            if not ok:
+                self.core.on_nav_failed(self.now())  # don't re-issue the same unreachable goal
             self.route = []
             self.goal_reached = True
 
