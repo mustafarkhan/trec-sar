@@ -37,20 +37,20 @@ controller_server:
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       desired_linear_vel: 1.5
-      lookahead_dist: 1.5
+      lookahead_dist: 2.0
       min_lookahead_dist: 0.8
       max_lookahead_dist: 3.0
-      use_velocity_scaled_lookahead_dist: true
+      use_velocity_scaled_lookahead_dist: false
       lookahead_time: 1.5
       rotate_to_heading_angular_vel: 1.0
-      use_rotate_to_heading: true       # skid steer can turn in place, as TREC did
+      use_rotate_to_heading: false      # drive arcs; in-place pivots oscillated on the skid-steer model
       rotate_to_heading_min_angle: 0.6
       max_angular_accel: 3.2
       transform_tolerance: 0.2
       use_regulated_linear_velocity_scaling: true
-      use_cost_regulated_linear_velocity_scaling: true
+      use_cost_regulated_linear_velocity_scaling: false
       regulated_linear_scaling_min_radius: 0.9
-      regulated_linear_scaling_min_speed: 0.3
+      regulated_linear_scaling_min_speed: 0.4
       allow_reversing: false
       max_robot_pose_search_dist: 10.0
 
