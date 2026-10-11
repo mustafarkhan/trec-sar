@@ -81,7 +81,7 @@ jobs:
           fi
           kill $LAUNCH || true; sleep 3
           python3 .github/scripts/annotate.py notice "Casualty report" /tmp/report.txt 20
-          python3 .github/scripts/annotate.py notice "Mission events" /tmp/sim3d.log 60 "state ->|relay|CASUALTY|person detected|aerial cue|Nav2 not ready|goal \(|segment failed"
+          python3 .github/scripts/annotate.py notice "Mission events" /tmp/sim3d.log 60 "state ->|relay|CASUALTY|person detected|aerial cue|Nav2 not ready|goal \(|segment failed|escape manoeuvre"
           python3 .github/scripts/annotate.py notice "Robot track (ground truth, per minute)" /tmp/track.txt 45
           if [ $STATUS -ne 0 ]; then
             python3 .github/scripts/annotate.py error "Nodes after 120 s" /tmp/nodes.txt 60
