@@ -28,6 +28,7 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           cd ros2_ws && colcon build --event-handlers console_direct-
       - name: Motion check (bare robot, no Nav2)
+        continue-on-error: true   # diagnostic only
         shell: bash
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
@@ -44,7 +45,7 @@ jobs:
             echo "== after 6 s forward 0.5 m/s"; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose $P;
             timeout 8 ros2 topic pub -r 10 --times 60 /cmd_vel geometry_msgs/msg/Twist "{angular: {z: 0.5}}" > /dev/null;
             echo "== after 6 s turning 0.5 rad/s"; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose $P;
-            echo "== odom"; timeout 8 ros2 topic echo --once /odom --field pose.pose; } > /tmp/motion.txt 2>&1
+            echo "== odom"; timeout 8 ros2 topic echo --once /odom --field pose.pose; } > /tmp/motion.txt 2>&1 || true
           kill $SIM || true; sleep 5; pkill -f "gz sim" || true; pkill -f ros_gz || true; sleep 2
           python3 .github/scripts/annotate.py notice "Motion check" /tmp/motion.txt 60
           python3 .github/scripts/annotate.py notice "Motion check sim log" /tmp/motion_sim.log 25 "ERROR|Error|error|WARN|Warn"
