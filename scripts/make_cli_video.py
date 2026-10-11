@@ -65,8 +65,16 @@ def terminal_scene(title: str, subtitle: str, steps: list[tuple[str, list[str]]]
         fig.text(0.05, 0.95, title, fontsize=30, weight="bold", color=INK, va="top")
         fig.text(0.05, 0.895, subtitle, fontsize=16, color=INK2, va="top")
         fig.patches.append(
-            FancyBboxPatch((0.05, 0.05), 0.90, 0.80, boxstyle="round,pad=0.004,rounding_size=0.012",
-                           transform=fig.transFigure, fc=TERM, ec="#2a2d33", lw=1.5)
+            FancyBboxPatch(
+                (0.05, 0.05),
+                0.90,
+                0.80,
+                boxstyle="round,pad=0.004,rounding_size=0.012",
+                transform=fig.transFigure,
+                fc=TERM,
+                ec="#2a2d33",
+                lw=1.5,
+            )
         )
         for i, c in enumerate(("#e66767", "#c98500", "#3fb97a")):
             fig.patches.append(plt.Circle((0.07 + i * 0.016, 0.83), 0.005, transform=fig.transFigure, color=c))
@@ -107,24 +115,36 @@ def terminal_scene(title: str, subtitle: str, steps: list[tuple[str, list[str]]]
     return seconds, setup
 
 
-def image_scene(title: str, subtitle: str, left_img: Path, right_img: Path | None, caption: str, seconds: float,
-                left_title: str = "", right_title: str = ""):
+def image_scene(
+    title: str,
+    subtitle: str,
+    left_img: Path,
+    right_img: Path | None,
+    caption: str,
+    seconds: float,
+    left_title: str = "",
+    right_title: str = "",
+):
     def setup(fig):
         fig.text(0.05, 0.95, title, fontsize=30, weight="bold", color=INK, va="top")
         fig.text(0.05, 0.895, subtitle, fontsize=16, color=INK2, va="top")
         if right_img is None:
             ax = fig.add_axes([0.05, 0.10, 0.90, 0.76])
-            ax.imshow(plt.imread(left_img)); ax.axis("off")
+            ax.imshow(plt.imread(left_img))
+            ax.axis("off")
             axes = [ax]
         else:
             a1 = fig.add_axes([0.05, 0.10, 0.36, 0.74])
             im = plt.imread(left_img)
-            a1.imshow(im, interpolation="nearest"); a1.set_xticks([]); a1.set_yticks([])
+            a1.imshow(im, interpolation="nearest")
+            a1.set_xticks([])
+            a1.set_yticks([])
             a1.set_title(left_title, color=INK2, fontsize=14, loc="left")
             for sp in a1.spines.values():
                 sp.set_color(MUTED)
             a2 = fig.add_axes([0.43, 0.08, 0.54, 0.78])
-            a2.imshow(plt.imread(right_img)); a2.axis("off")
+            a2.imshow(plt.imread(right_img))
+            a2.axis("off")
             a2.set_title(right_title, color=INK2, fontsize=14, loc="left")
             axes = [a1, a2]
         cap = fig.text(0.05, 0.03, caption, fontsize=14, color=MUTED, va="bottom")
@@ -144,8 +164,21 @@ def text_scene(lines, seconds):
     def setup(fig):
         objs = []
         for text, size, color, weight, y, start, family in lines:
-            objs.append((fig.text(0.07, y, text, fontsize=size, color=color, weight=weight, va="top",
-                                  family=family or "DejaVu Sans"), start))
+            objs.append(
+                (
+                    fig.text(
+                        0.07,
+                        y,
+                        text,
+                        fontsize=size,
+                        color=color,
+                        weight=weight,
+                        va="top",
+                        family=family or "DejaVu Sans",
+                    ),
+                    start,
+                )
+            )
 
         def update(u):
             for t, s in objs:
@@ -161,8 +194,15 @@ def yaml_card(path: Path) -> Path:
     lines = [ln for ln in path.read_text().splitlines() if not ln.startswith("#")][:22]
     fig = plt.figure(figsize=(7.0, 8.2), dpi=120, facecolor=TERM)
     for i, ln in enumerate(lines):
-        fig.text(0.04, 0.97 - i * 0.043, ln[:62], fontsize=12.5, family=MONO,
-                 color=BLUE if ":" in ln and not ln.startswith(" ") else INK2, va="top")
+        fig.text(
+            0.04,
+            0.97 - i * 0.043,
+            ln[:62],
+            fontsize=12.5,
+            family=MONO,
+            color=BLUE if ":" in ln and not ln.startswith(" ") else INK2,
+            va="top",
+        )
     out = WORK / "yaml.png"
     fig.savefig(out, facecolor=TERM)
     plt.close(fig)
@@ -170,9 +210,33 @@ def yaml_card(path: Path) -> Path:
 
 
 def render(scenes, out: Path):
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r",
-           str(FPS), "-i", "-", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "19", "-preset", "medium",
-           "-movflags", "+faststart", str(out)]
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "-s",
+        f"{W}x{H}",
+        "-r",
+        str(FPS),
+        "-i",
+        "-",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-crf",
+        "19",
+        "-preset",
+        "medium",
+        "-movflags",
+        "+faststart",
+        str(out),
+    ]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for seconds, setup in scenes:
         fig = new_fig()
@@ -200,46 +264,130 @@ def main():
     s_scen = sh("trecsar scenarios", 12)
     s_cmp = sh("trecsar compare --scenario tunnel --seed 1003", 8)
     s_run = sh("trecsar run --scenario forest_winter --seed 1002 --events", 16)
-    s_site = sh(f"trecsar compare --site {site.relative_to(ROOT)} --seed 2 --planners greedy_bayes,trecsar "
-                f"--plot {campus_plot}", 8)
+    s_site = sh(
+        f"trecsar compare --site {site.relative_to(ROOT)} --seed 2 --planners greedy_bayes,trecsar "
+        f"--plot {campus_plot}",
+        8,
+    )
     s_site = [ln if not ln.startswith("plot:") else "plot: campus_compare.png" for ln in s_site]
     s_json = sh("trecsar run --scenario hazmat_industrial --seed 5 --json", 16)
     scenes = [
-        text_scene([
-            ("TREC-SAR", 64, INK, "bold", 0.66, 0.0, None),
-            ("The command-line tool", 30, INK2, "normal", 0.53, 0.12, None),
-            ("Search-and-rescue planning you can run on any laptop · v0.1.0", 18, MUTED, "normal", 0.44, 0.25, None),
-            ("pip install -e \"core[viz]\"", 22, PROMPT, "normal", 0.30, 0.4, MONO),
-        ], 4.5),
-        terminal_scene("1 · Install and explore", "Python 3.10+ on Linux, macOS or Windows",
-                       [("trecsar --version", s_version), ("trecsar scenarios", s_scen)], 9.0),
-        terminal_scene("2 · Compare every planner on the same mission",
-                       "Same tunnel, same missing worker, same detection luck for each planner",
-                       [("trecsar compare --scenario tunnel --seed 1003", s_cmp)], 9.0),
-        terminal_scene("3 · Read the mission log", "What the robot decided, minute by minute",
-                       [("trecsar run --scenario forest_winter --seed 1002 --events", s_run)], 11.0),
-        terminal_scene("4 · Bring your own site", "Paint a map, describe it in YAML, and every planner runs on it",
-                       [(f"trecsar compare --site {site.relative_to(ROOT)} --seed 2 "
-                         "--planners greedy_bayes,trecsar --plot campus_compare.png", s_site)], 8.0),
-        image_scene("4 · Bring your own site", "examples/sites/campus — a campus park at night, 90 × 90 cells at 5 m",
-                    yaml_card(site), campus_plot, "Left: the site file.  Right: the plot written by --plot. "
-                    "One pixel of the map = one 5 m grid cell.", 9.0, "site.yaml", "campus_compare.png"),
-        terminal_scene("5 · Script it", "Every command speaks JSON",
-                       [("trecsar run --scenario hazmat_industrial --seed 5 --json", s_json)], 7.5),
-        text_scene([
-            ("6 · Run the ROS 2 stack — no GPU needed", 30, INK, "bold", 0.86, 0.0, None),
-            ("$ ros2 launch trecsar_bringup headless.launch.py scenario:=hazmat_industrial seed:=5", 19, INK,
-             "normal", 0.72, 0.08, MONO),
-            ("$ ros2 topic echo --once /trecsar/report", 19, INK, "normal", 0.66, 0.16, MONO),
-            ("Mission manager, radio-link simulator, detector and drone cue run as ROS 2 nodes with a",
-             18, INK2, "normal", 0.54, 0.26, None),
-            ("stand-in robot. GitHub runs this full mission on every push and fails unless a casualty",
-             18, INK2, "normal", 0.49, 0.26, None),
-            ("report arrives. The 3D Gazebo + Nav2 demo uses the same nodes.", 18, INK2, "normal", 0.44, 0.26, None),
-            ("github.com/mustafarkhan/trec-sar", 26, BLUE, "bold", 0.26, 0.45, None),
-            ("Mustafa R. Khan  ·  MIT license  ·  simulation results, limits documented in the repo", 15, MUTED,
-             "normal", 0.17, 0.55, None),
-        ], 8.5),
+        text_scene(
+            [
+                ("TREC-SAR", 64, INK, "bold", 0.66, 0.0, None),
+                ("The command-line tool", 30, INK2, "normal", 0.53, 0.12, None),
+                (
+                    "Search-and-rescue planning you can run on any laptop · v0.1.0",
+                    18,
+                    MUTED,
+                    "normal",
+                    0.44,
+                    0.25,
+                    None,
+                ),
+                ('pip install -e "core[viz]"', 22, PROMPT, "normal", 0.30, 0.4, MONO),
+            ],
+            4.5,
+        ),
+        terminal_scene(
+            "1 · Install and explore",
+            "Python 3.10+ on Linux, macOS or Windows",
+            [("trecsar --version", s_version), ("trecsar scenarios", s_scen)],
+            9.0,
+        ),
+        terminal_scene(
+            "2 · Compare every planner on the same mission",
+            "Same tunnel, same missing worker, same detection luck for each planner",
+            [("trecsar compare --scenario tunnel --seed 1003", s_cmp)],
+            9.0,
+        ),
+        terminal_scene(
+            "3 · Read the mission log",
+            "What the robot decided, minute by minute",
+            [("trecsar run --scenario forest_winter --seed 1002 --events", s_run)],
+            11.0,
+        ),
+        terminal_scene(
+            "4 · Bring your own site",
+            "Paint a map, describe it in YAML, and every planner runs on it",
+            [
+                (
+                    f"trecsar compare --site {site.relative_to(ROOT)} --seed 2 "
+                    "--planners greedy_bayes,trecsar --plot campus_compare.png",
+                    s_site,
+                )
+            ],
+            8.0,
+        ),
+        image_scene(
+            "4 · Bring your own site",
+            "examples/sites/campus — a campus park at night, 90 × 90 cells at 5 m",
+            yaml_card(site),
+            campus_plot,
+            "Left: the site file.  Right: the plot written by --plot. One pixel of the map = one 5 m grid cell.",
+            9.0,
+            "site.yaml",
+            "campus_compare.png",
+        ),
+        terminal_scene(
+            "5 · Script it",
+            "Every command speaks JSON",
+            [("trecsar run --scenario hazmat_industrial --seed 5 --json", s_json)],
+            7.5,
+        ),
+        text_scene(
+            [
+                ("6 · Run the ROS 2 stack — no GPU needed", 30, INK, "bold", 0.86, 0.0, None),
+                (
+                    "$ ros2 launch trecsar_bringup headless.launch.py scenario:=hazmat_industrial seed:=5",
+                    19,
+                    INK,
+                    "normal",
+                    0.72,
+                    0.08,
+                    MONO,
+                ),
+                ("$ ros2 topic echo --once /trecsar/report", 19, INK, "normal", 0.66, 0.16, MONO),
+                (
+                    "Mission manager, radio-link simulator, detector and drone cue run as ROS 2 nodes with a",
+                    18,
+                    INK2,
+                    "normal",
+                    0.54,
+                    0.26,
+                    None,
+                ),
+                (
+                    "stand-in robot. GitHub runs this full mission on every push and fails unless a casualty",
+                    18,
+                    INK2,
+                    "normal",
+                    0.49,
+                    0.26,
+                    None,
+                ),
+                (
+                    "report arrives. The 3D Gazebo + Nav2 demo uses the same nodes.",
+                    18,
+                    INK2,
+                    "normal",
+                    0.44,
+                    0.26,
+                    None,
+                ),
+                ("github.com/mustafarkhan/trec-sar", 26, BLUE, "bold", 0.26, 0.45, None),
+                (
+                    "Mustafa R. Khan  ·  MIT license  ·  simulation results, limits documented in the repo",
+                    15,
+                    MUTED,
+                    "normal",
+                    0.17,
+                    0.55,
+                    None,
+                ),
+            ],
+            8.5,
+        ),
     ]
     out = ROOT / "media" / "trec-sar_cli_demo.mp4"
     render(scenes, out)
