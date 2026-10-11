@@ -82,8 +82,8 @@ local_costmap:
           obstacle_max_range: 25.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.8
+        cost_scaling_factor: 5.0
+        inflation_radius: 0.6
 
 global_costmap:
   global_costmap:
@@ -116,8 +116,8 @@ global_costmap:
           obstacle_max_range: 25.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.9
+        cost_scaling_factor: 5.0
+        inflation_radius: 0.6
 
 planner_server:
   ros__parameters:

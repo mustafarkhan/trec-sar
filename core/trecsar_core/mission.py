@@ -38,6 +38,7 @@ class MissionCore:
     _out_since: float | None = None
     _detected_at: int | None = None
     _taboo: list = field(default_factory=list)
+    _recovery_tried: list = field(default_factory=list)
 
     def __post_init__(self):
         t = self.world.sc.terrain
@@ -63,6 +64,7 @@ class MissionCore:
         if margin_db >= self.m.link_threshold_db:
             self._out_since = None
             self._authorized_out = 0.0
+            self._recovery_tried = []
             if self.state == "LINK_RECOVERY":
                 cmds += self._set("SEARCH")
                 self._plan_goal = None
@@ -98,7 +100,15 @@ class MissionCore:
 
     # ---- decision tick ------------------------------------------------------------
     def tick(self, now: float, goal_reached: bool) -> list:
-        if self.state != "SEARCH" or self.pos < 0:
+        if self.pos < 0:
+            return []
+        if self.state in ("LINK_RECOVERY", "REPORT"):
+            # Navigation to the recovery point finished or failed and we still have no link:
+            # try the next-nearest covered cell instead of waiting forever.
+            if goal_reached and self.margin_db < self.m.link_threshold_db:
+                return self._goto_nearest_covered()
+            return []
+        if self.state != "SEARCH":
             return []
         cmds = []
         if self._relay_at is not None and self.pos == self._relay_at and self.relays_left > 0:
@@ -146,8 +156,17 @@ class MissionCore:
         return [("state", s)]
 
     def _goto_nearest_covered(self) -> list:
+        """Nearest covered cell, skipping recovery targets already tried from here."""
         d, _ = self.world.oracle.from_cell(self.pos)
         ok = (self.coverage.ravel() >= self.m.link_threshold_db + 1.0) & np.isfinite(d)
+        if self._recovery_tried:
+            rr, cc = np.indices(self.t.shape)
+            for g in self._recovery_tried:
+                gr, gc = self.t.rc(g)
+                ok &= (((rr - gr) ** 2 + (cc - gc) ** 2) > 9).ravel()  # >3 cells from a failed target
         if not ok.any():
+            self._recovery_tried = []
             return [("goto", self.t.idx(self.t.base))]
-        return [("goto", int(np.argmin(np.where(ok, d, np.inf))))]
+        target = int(np.argmin(np.where(ok, d, np.inf)))
+        self._recovery_tried.append(target)
+        return [("goto", target)]
