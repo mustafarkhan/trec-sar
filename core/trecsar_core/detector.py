@@ -7,6 +7,7 @@ In the 3D simulator this is replaced by a real detector (YOLO) on rendered
 images; this analytic model is what the planner uses to reason about where to
 look, and what the 2D Monte Carlo uses as ground truth.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,12 +22,12 @@ class Detector:
         self.pmax = pmax
         self.occlusion = occlusion
         R = int(np.ceil(sense_radius_m / t.resolution))
-        dr, dc = np.mgrid[-R:R + 1, -R:R + 1]
+        dr, dc = np.mgrid[-R : R + 1, -R : R + 1]
         dist = np.hypot(dr, dc)
         keep = dist <= R
         self.dr, self.dc = dr[keep], dc[keep]
         d_m = dist[keep] * t.resolution
-        self.base_pod = pmax * np.exp(-(d_m / r0_m) ** 2)
+        self.base_pod = pmax * np.exp(-((d_m / r0_m) ** 2))
         # line-of-sight sample offsets for every footprint cell, padded to equal length
         L = 2 * R + 1
         ts = (np.arange(1, L) / L)[None, :]
@@ -36,7 +37,7 @@ class Detector:
         k = np.zeros((2 * R + 1, 2 * R + 1))
         k[self.dr + R, self.dc + R] = self.base_pod
         self.kernel = k
-        self._vis = (1.0 - occlusion * t.canopy)
+        self._vis = 1.0 - occlusion * t.canopy
 
     def glimpse(self, pos: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
         """Return (flat cell indices, POD) for one look from `pos`."""

@@ -1,4 +1,5 @@
 """Static checks that run without a ROS installation (CI-friendly)."""
+
 import ast
 from pathlib import Path
 

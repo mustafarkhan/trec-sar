@@ -1,32 +1,80 @@
 name: ci
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 jobs:
-  core:
+  lint:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install -e "core[viz,test]" xacro pyyaml
-      - name: Unit and behaviour tests
-        run: pytest -q core/tests ros2_ws/src/trecsar_mission/test
+      - run: pip install "ruff>=0.6"
+      - run: ruff check .
+      - run: ruff format --check .
+
+  core:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ matrix.python }}" }
+      - run: pip install -e "core[viz,test]" xacro
+      - name: Unit, behaviour and CLI tests (with coverage)
+        run: pytest -q core/tests ros2_ws/src/trecsar_mission/test --cov=trecsar_core --cov-report=term-missing:skip-covered
+      - name: CLI smoke test
+        run: |
+          trecsar --version
+          trecsar scenarios
+          trecsar compare --scenario tunnel --seed 1003 --plot /tmp/compare.png
+          trecsar run --site examples/sites/campus/site.yaml --seed 2 --events
       - name: URDF expands
         run: xacro ros2_ws/src/trecsar_description/urdf/trecsar.urdf.xacro > /dev/null
-      - name: Worlds regenerate identically
+      - name: Gazebo worlds regenerate identically
         run: |
-          python3 ros2_ws/src/trecsar_gazebo/scripts/terrain_to_sdf.py forest_winter --seed 1002 -o /tmp/f.sdf
-          diff -q /tmp/f.sdf ros2_ws/src/trecsar_gazebo/worlds/forest_winter.sdf
-      - name: Smoke experiment
-        run: python3 scripts/run_experiments.py --runs 5 --out /tmp/results
+          for s in "forest_winter 1002" "tunnel 1003" "hazmat_industrial 1022"; do
+            set -- $s
+            python3 ros2_ws/src/trecsar_gazebo/scripts/terrain_to_sdf.py $1 --seed $2 -o /tmp/$1.sdf
+            diff -q /tmp/$1.sdf ros2_ws/src/trecsar_gazebo/worlds/$1.sdf
+          done
+      - name: Benchmark smoke run
+        run: trecsar bench --runs 3 --workers 2 --out /tmp/results
+
   ros2:
     runs-on: ubuntu-24.04
     container: ros:jazzy
     steps:
       - uses: actions/checkout@v4
-      - run: apt-get update && apt-get install -y python3-scipy python3-pip
-      - run: pip install --break-system-packages -e core
-      - run: |
-          . /opt/ros/jazzy/setup.sh
-          cd ros2_ws
-          rosdep update && rosdep install --from-paths src -y --ignore-src || true
-          colcon build
+      - name: Dependencies
+        run: |
+          apt-get update
+          apt-get install -y python3-pip python3-scipy python3-yaml python3-pil \
+            ros-jazzy-nav2-msgs ros-jazzy-visualization-msgs ros-jazzy-launch-ros
+          pip install --break-system-packages -e core
+      - name: Build all ROS 2 packages
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cd ros2_ws && colcon build --event-handlers console_direct-
+      - name: End-to-end mission (headless, no Gazebo)
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source ros2_ws/install/setup.bash
+          ros2 launch trecsar_bringup headless.launch.py scenario:=hazmat_industrial seed:=5 speed:=8.0 \
+            > /tmp/mission.log 2>&1 &
+          LAUNCH=$!
+          if timeout 300 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report.txt; then
+            echo "== casualty report received =="; cat /tmp/report.txt; STATUS=0
+          else
+            echo "== no report within 300 s =="; STATUS=1
+          fi
+          kill $LAUNCH || true
+          echo "== mission log (tail) =="; tail -n 60 /tmp/mission.log
+          exit $STATUS

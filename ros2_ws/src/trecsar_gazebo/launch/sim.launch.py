@@ -1,7 +1,8 @@
 """Start Gazebo Harmonic with a TREC-SAR scenario world and spawn the UGV at the command post.
 
-    ros2 launch trecsar_gazebo sim.launch.py scenario:=forest_winter
+ros2 launch trecsar_gazebo sim.launch.py scenario:=forest_winter
 """
+
 import os
 import tempfile
 
@@ -36,27 +37,57 @@ def _setup(context):
         f.write(bridge_cfg)
 
     robot_description = ParameterValue(
-        Command(["xacro ", os.path.join(desc_share, "urdf", "trecsar.urdf.xacro")]), value_type=str)
+        Command(["xacro ", os.path.join(desc_share, "urdf", "trecsar.urdf.xacro")]), value_type=str
+    )
 
     gz = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(get_package_share_directory("ros_gz_sim"), "launch", "gz_sim.launch.py")),
-        launch_arguments={"gz_args": f"-r {world}"}.items())
+        PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory("ros_gz_sim"), "launch", "gz_sim.launch.py")
+        ),
+        launch_arguments={"gz_args": f"-r {world}"}.items(),
+    )
 
     return [
         gz,
-        Node(package="robot_state_publisher", executable="robot_state_publisher",
-             parameters=[{"robot_description": robot_description, "use_sim_time": True}]),
-        Node(package="ros_gz_sim", executable="create", output="screen",
-             arguments=["-name", "trecsar", "-topic", "robot_description",
-                        "-x", str(x), "-y", str(y), "-z", "0.3", "-Y", str(yaw)]),
-        Node(package="ros_gz_bridge", executable="parameter_bridge", output="screen",
-             parameters=[{"config_file": bridge_file, "use_sim_time": True}]),
+        Node(
+            package="robot_state_publisher",
+            executable="robot_state_publisher",
+            parameters=[{"robot_description": robot_description, "use_sim_time": True}],
+        ),
+        Node(
+            package="ros_gz_sim",
+            executable="create",
+            output="screen",
+            arguments=[
+                "-name",
+                "trecsar",
+                "-topic",
+                "robot_description",
+                "-x",
+                str(x),
+                "-y",
+                str(y),
+                "-z",
+                "0.3",
+                "-Y",
+                str(yaw),
+            ],
+        ),
+        Node(
+            package="ros_gz_bridge",
+            executable="parameter_bridge",
+            output="screen",
+            parameters=[{"config_file": bridge_file, "use_sim_time": True}],
+        ),
     ]
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument("scenario", default_value="forest_winter",
-                              description="forest_winter | tunnel | hazmat_industrial"),
-        OpaqueFunction(function=_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                "scenario", default_value="forest_winter", description="forest_winter | tunnel | hazmat_industrial"
+            ),
+            OpaqueFunction(function=_setup),
+        ]
+    )

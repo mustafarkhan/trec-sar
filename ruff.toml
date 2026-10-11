@@ -1,0 +1,21 @@
+line-length = 120
+target-version = "py310"
+extend-exclude = ["ros2_ws/build", "ros2_ws/install", "ros2_ws/log", "*.ipynb"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = [
+  "E501",   # line length is handled by `ruff format`; long XML/text templates are fine
+  "SIM105", # explicit try/except KeyboardInterrupt is the usual rclpy idiom
+  "E702",   # several short statements on one line in plotting code
+  "SIM108", # ternaries are not always clearer
+  "B905",   # zip(strict=) not needed for equal-length internal arrays
+]
+
+[lint.per-file-ignores]
+"core/tests/*" = ["E402"]
+"scripts/*" = ["E402"]
+"ros2_ws/**/*.py" = ["E402"]
+
+[lint.isort]
+known-first-party = ["trecsar_core", "trecsar_mission"]

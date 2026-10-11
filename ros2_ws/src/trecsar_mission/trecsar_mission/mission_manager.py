@@ -12,21 +12,22 @@ Outputs
   /trecsar/report             std_msgs/String (JSON)         casualty report for the command post
   /trecsar/belief, /trecsar/coverage  nav_msgs/OccupancyGrid  for RViz
 """
+
 from __future__ import annotations
 
 import json
 
 import rclpy
 from geometry_msgs.msg import PointStamped, PoseStamped
-from nav_msgs.msg import OccupancyGrid
 from nav2_msgs.action import NavigateToPose
+from nav_msgs.msg import OccupancyGrid
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from std_msgs.msg import Float32, String
 
-from .common import get_world, grid_msg
-
 from trecsar_core.mission import MissionCore  # noqa: E402  (path set up by common)
+
+from .common import get_world, grid_msg
 
 
 class MissionManager(Node):
@@ -82,8 +83,13 @@ class MissionManager(Node):
                 self.get_logger().info(f"deploying relay at {x:.1f}, {y:.1f}")
             elif cmd == "report":
                 x, y = self.t.cell_to_xy(self.t.rc(arg))
-                rep = {"type": "casualty_report", "x_m": round(x, 1), "y_m": round(y, 1),
-                       "time_s": round(self.now(), 1), "relays_used": self.world.sc.mission.relays - self.core.relays_left}
+                rep = {
+                    "type": "casualty_report",
+                    "x_m": round(x, 1),
+                    "y_m": round(y, 1),
+                    "time_s": round(self.now(), 1),
+                    "relays_used": self.world.sc.mission.relays - self.core.relays_left,
+                }
                 self.pub_report.publish(String(data=json.dumps(rep)))
                 self.cancel_goal()
                 self.get_logger().warn(f"CASUALTY REPORTED: {rep}")
@@ -96,6 +102,7 @@ class MissionManager(Node):
             self.get_logger().warn("Nav2 not ready yet")
             self.goal_reached = True
             return
+        self.cancel_goal()  # one goal at a time
         x, y = self.t.cell_to_xy(self.t.rc(cell))
         goal = NavigateToPose.Goal()
         goal.pose.header.frame_id = "map"
@@ -108,11 +115,17 @@ class MissionManager(Node):
         fut.add_done_callback(self._accepted)
 
     def _accepted(self, fut):
-        self.goal_handle = fut.result()
-        if not self.goal_handle.accepted:
+        handle = fut.result()
+        if not handle.accepted:
             self.goal_reached = True
             return
-        self.goal_handle.get_result_async().add_done_callback(lambda _f: setattr(self, "goal_reached", True))
+        self.goal_handle = handle
+
+        def done(_f, h=handle):
+            if self.goal_handle is h:  # ignore results of preempted / cancelled goals
+                self.goal_reached = True
+
+        handle.get_result_async().add_done_callback(done)
 
     def cancel_goal(self):
         if self.goal_handle is not None:

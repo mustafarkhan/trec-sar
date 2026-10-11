@@ -26,7 +26,8 @@ Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
 - **Weights were tuned** on seeds 100–159 and evaluated on seeds 1000–1199. Tuning was light (a handful of
   settings), and the ablation was run with the same care so the comparison is fair.
 - **3D stack:** the ROS 2 packages are written against Jazzy + Gazebo Harmonic APIs and syntax-checked, and the
-  mission logic they wrap is unit-tested, but the full launch has not been run end to end in this repository's CI.
+  mission logic they wrap is unit-tested. CI builds all packages on ROS 2 Jazzy and runs the full mission stack
+  end to end with a headless stand-in robot; the Gazebo + Nav2 launch has not been run in CI.
   Expect to tune Nav2 and the bridge on first run (see RUNNING.md).
 
 ## Ethics and dual use

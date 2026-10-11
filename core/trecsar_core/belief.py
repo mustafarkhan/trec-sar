@@ -5,6 +5,7 @@ The map holds P(person in cell). Mass outside the modelled area is kept as
 `p_row` ("rest of world") so that unsuccessful search correctly shifts belief
 both between cells and out of the area.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -41,7 +42,7 @@ class Belief:
         self.p_row = float(p_row)
 
     @classmethod
-    def from_scenario(cls, t: Terrain, person: LostPersonProfile) -> "Belief":
+    def from_scenario(cls, t: Terrain, person: LostPersonProfile) -> Belief:
         prior = prior_map(t, person)
         return cls(prior, 1.0 - prior.sum())
 
@@ -55,7 +56,7 @@ class Belief:
         Returns the probability of success (POS) that this glimpse had.
         """
         pos = float((self.p * pod).sum())
-        self.p *= (1.0 - pod)
+        self.p *= 1.0 - pod
         norm = self.p.sum() + self.p_row
         self.p /= norm
         self.p_row /= norm
@@ -79,7 +80,7 @@ class Belief:
         i.e. the cue is either a true (noisy) detection or uninformative clutter.
         """
         r, c = np.indices(self.p.shape)
-        g = np.exp(-((r - cue_rc[0]) ** 2 + (c - cue_rc[1]) ** 2) / (2 * sigma_cells ** 2))
+        g = np.exp(-((r - cue_rc[0]) ** 2 + (c - cue_rc[1]) ** 2) / (2 * sigma_cells**2))
         g /= g.max()
         like_in = reliability * g + (1 - reliability)
         like_row = 1 - reliability

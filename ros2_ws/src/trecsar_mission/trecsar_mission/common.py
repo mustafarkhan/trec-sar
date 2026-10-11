@@ -1,4 +1,5 @@
 """Helpers shared by the TREC-SAR ROS 2 nodes."""
+
 from __future__ import annotations
 
 import sys
@@ -8,7 +9,7 @@ import numpy as np
 
 try:
     import trecsar_core  # noqa: F401  (pip install -e core/)
-except ImportError:      # fall back to the source checkout layout: <repo>/ros2_ws/src/trecsar_mission/...
+except ImportError:  # fall back to the source checkout layout: <repo>/ros2_ws/src/trecsar_mission/...
     for parent in Path(__file__).resolve().parents:
         cand = parent / "core"
         if (cand / "trecsar_core").is_dir():

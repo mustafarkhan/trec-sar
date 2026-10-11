@@ -3,6 +3,7 @@
 Every layer is a 2D numpy array of shape (rows, cols). One cell = `resolution`
 metres. Coordinates are (row, col); flat indices are row * cols + col.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -13,13 +14,13 @@ import numpy as np
 @dataclass
 class Terrain:
     name: str
-    resolution: float                 # metres per cell
-    cost: np.ndarray                  # traversal multiplier (>=1); np.inf = impassable
-    rf_db_per_m: np.ndarray           # extra radio attenuation per metre inside this cell
-    canopy: np.ndarray                # 0..1 occlusion for camera/thermal detection
-    affinity: np.ndarray              # lost-person location weight (0 = never there)
-    base: tuple[int, int]             # incident command post / radio base station
-    lkp: tuple[int, int]              # last known point of the missing person
+    resolution: float  # metres per cell
+    cost: np.ndarray  # traversal multiplier (>=1); np.inf = impassable
+    rf_db_per_m: np.ndarray  # extra radio attenuation per metre inside this cell
+    canopy: np.ndarray  # 0..1 occlusion for camera/thermal detection
+    affinity: np.ndarray  # lost-person location weight (0 = never there)
+    base: tuple[int, int]  # incident command post / radio base station
+    lkp: tuple[int, int]  # last known point of the missing person
     labels: dict[str, np.ndarray] = field(default_factory=dict)  # named masks for plots/docs
 
     @property

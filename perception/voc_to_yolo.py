@@ -10,6 +10,7 @@ Images without people are kept as negatives (empty label file) — important for
 search and rescue, where most frames contain nobody.
 If no split files are given, a deterministic 80/10/10 split is made.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -81,7 +82,7 @@ def main():
         for i, s in enumerate(shuffled):
             split_of[s] = "train" if i < 0.8 * n else ("val" if i < 0.9 * n else "test")
 
-    counts = {k: [0, 0] for k in ("train", "val", "test")}   # images, boxes
+    counts = {k: [0, 0] for k in ("train", "val", "test")}  # images, boxes
     for x in xmls:
         split = split_of.get(x.stem)
         if split is None:
@@ -94,12 +95,14 @@ def main():
         (a.out / "labels" / split).mkdir(parents=True, exist_ok=True)
         shutil.copy2(img, a.out / "images" / split / img.name)
         (a.out / "labels" / split / f"{img.stem}.txt").write_text(
-            "".join(f"0 {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n" for cx, cy, bw, bh in boxes))
+            "".join(f"0 {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n" for cx, cy, bw, bh in boxes)
+        )
         counts[split][0] += 1
         counts[split][1] += len(boxes)
 
     (a.out / "data.yaml").write_text(
-        f"path: {a.out.resolve()}\ntrain: images/train\nval: images/val\ntest: images/test\nnames:\n  0: person\n")
+        f"path: {a.out.resolve()}\ntrain: images/train\nval: images/val\ntest: images/test\nnames:\n  0: person\n"
+    )
     for k, (n_img, n_box) in counts.items():
         print(f"{k:5s}: {n_img} images, {n_box} person boxes")
     print(f"wrote {a.out / 'data.yaml'}")
