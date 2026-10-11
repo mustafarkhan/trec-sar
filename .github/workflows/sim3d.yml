@@ -43,6 +43,11 @@ jobs:
             timeout 15 ros2 run tf2_ros tf2_echo map base_footprint > /tmp/tf.txt 2>&1 || true;
             ros2 lifecycle get /bt_navigator > /tmp/lifecycle.txt 2>&1 || true;
             ros2 lifecycle get /slam_toolbox >> /tmp/lifecycle.txt 2>&1 || true ) &
+          ( sleep 240; timeout 8 ros2 topic echo --once /cmd_vel > /tmp/cmd_vel.txt 2>&1 || true;
+            timeout 8 ros2 topic echo --once /odom --field twist > /tmp/odom.txt 2>&1 || true;
+            timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose.position >> /tmp/odom.txt 2>&1 || true;
+            sleep 60; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose.position >> /tmp/odom.txt 2>&1 || true;
+            timeout 8 ros2 topic echo --once /cmd_vel >> /tmp/cmd_vel.txt 2>&1 || true ) &
           if timeout 1800 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report.txt; then
             STATUS=0
           else
@@ -56,6 +61,8 @@ jobs:
             python3 .github/scripts/annotate.py error "Topics after 120 s" /tmp/topics.txt 60
             python3 .github/scripts/annotate.py error "TF map to base" /tmp/tf.txt 15
             python3 .github/scripts/annotate.py error "Lifecycle" /tmp/lifecycle.txt 10
+            python3 .github/scripts/annotate.py error "cmd_vel at 240 s and 300 s" /tmp/cmd_vel.txt 30
+            python3 .github/scripts/annotate.py error "Odom twist and pose at 240 s / 300 s" /tmp/odom.txt 40
             python3 .github/scripts/annotate.py error "Pose sample" /tmp/pose.txt 20
             python3 .github/scripts/annotate.py error "Clock sample" /tmp/clock.txt 10
             python3 .github/scripts/annotate.py error "Errors in log" /tmp/sim3d.log 50 "ERROR|Error|error|WARN|Failed|failed" 
