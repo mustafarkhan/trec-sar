@@ -37,16 +37,29 @@ def _setup(context):
             "cameras": LaunchConfiguration("cameras").perform(context),
         }.items(),
     )
-    # slam_toolbox is a lifecycle node on Jazzy: its own launch file configures and activates it
-    slam = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory("slam_toolbox"), "launch", "online_async_launch.py")
+    # slam_toolbox is a lifecycle node on Jazzy. Its launch file's own auto-start can race the
+    # node's services and leave it 'inactive', so a Nav2 lifecycle manager (which waits for
+    # the services) configures and activates it instead.
+    slam = [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(get_package_share_directory("slam_toolbox"), "launch", "online_async_launch.py")
+            ),
+            launch_arguments={
+                "use_sim_time": "true",
+                "slam_params_file": os.path.join(bringup, "config", "slam_params.yaml"),
+                "use_lifecycle_manager": "true",
+                "autostart": "false",
+            }.items(),
         ),
-        launch_arguments={
-            "use_sim_time": "true",
-            "slam_params_file": os.path.join(bringup, "config", "slam_params.yaml"),
-        }.items(),
-    )
+        Node(
+            package="nav2_lifecycle_manager",
+            executable="lifecycle_manager",
+            name="lifecycle_manager_slam",
+            output="screen",
+            parameters=[{"use_sim_time": True, "autostart": True, "node_names": ["slam_toolbox"]}],
+        ),
+    ]
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(bringup, "launch", "nav2.launch.py")),
         launch_arguments={
@@ -75,7 +88,7 @@ def _setup(context):
     # give Gazebo + SLAM time to come up before Nav2 and the mission start
     return [
         sim,
-        TimerAction(period=5.0, actions=[slam]),
+        TimerAction(period=5.0, actions=slam),
         TimerAction(period=10.0, actions=[nav2, rviz]),
         TimerAction(period=20.0, actions=mission),
     ]
