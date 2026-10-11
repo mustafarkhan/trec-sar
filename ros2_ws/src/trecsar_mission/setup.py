@@ -18,7 +18,7 @@ setup(
     maintainer="Mustafa R. Khan",
     maintainer_email="mustafarkhan@users.noreply.github.com",
     description="TREC-SAR link-aware search mission stack",
-    license="Apache-2.0",
+    license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [

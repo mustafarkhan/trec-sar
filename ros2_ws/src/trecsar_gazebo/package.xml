@@ -5,7 +5,7 @@
   <version>0.1.0</version>
   <description>Gazebo Harmonic worlds generated from TREC-SAR search-and-rescue scenarios</description>
   <maintainer email="mustafarkhan@users.noreply.github.com">Mustafa R. Khan</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>ros_gz_sim</exec_depend>
   <exec_depend>ros_gz_bridge</exec_depend>

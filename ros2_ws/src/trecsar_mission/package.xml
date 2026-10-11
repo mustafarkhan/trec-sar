@@ -5,7 +5,7 @@
   <version>0.1.0</version>
   <description>Link-aware Bayesian search mission manager, radio-link simulator, aerial-spotter stub and detectors</description>
   <maintainer email="mustafarkhan@users.noreply.github.com">Mustafa R. Khan</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
