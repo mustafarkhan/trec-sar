@@ -24,7 +24,10 @@ jobs:
       - name: Train and evaluate
         env:
           EPOCHS: "25"
-        run: python3 perception/train_ci.py 2>&1 | tee /tmp/train.log
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 perception/train_ci.py 2>&1 | tee /tmp/train.log
       - name: Summarise
         if: always()
         run: |
