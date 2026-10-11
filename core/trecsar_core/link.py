@@ -6,6 +6,7 @@ Defaults approximate a 2.4 GHz mesh radio (FSPL at 1 m ~ 40 dB). They are
 placeholders: replace with a site survey or a calibrated model (e.g. ITU-R P.833
 for vegetation, measured tunnel loss) before drawing operational conclusions.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -14,9 +15,17 @@ from .terrain import Terrain
 
 
 class LinkModel:
-    def __init__(self, terrain: Terrain, ptx_dbm: float = 20.0, antenna_gain_db: float = 4.0,
-                 sensitivity_dbm: float = -90.0, pl_1m_db: float = 40.0, exponent: float = 2.2,
-                 samples: int = 64, threshold_db: float = 10.0):
+    def __init__(
+        self,
+        terrain: Terrain,
+        ptx_dbm: float = 20.0,
+        antenna_gain_db: float = 4.0,
+        sensitivity_dbm: float = -90.0,
+        pl_1m_db: float = 40.0,
+        exponent: float = 2.2,
+        samples: int = 64,
+        threshold_db: float = 10.0,
+    ):
         self.t = terrain
         self.budget = ptx_dbm + antenna_gain_db - sensitivity_dbm
         self.pl_1m = pl_1m_db
@@ -56,7 +65,7 @@ class LinkModel:
         ts = ((np.arange(k) + 0.5) / k)[:, None]
         rr = np.clip(np.round(src[0] + ts * dr[None, :]).astype(int), 0, self.t.shape[0] - 1)
         cc = np.clip(np.round(src[1] + ts * dc[None, :]).astype(int), 0, self.t.shape[1] - 1)
-        rf = self.t.rf_db_per_m[rr, cc]                     # (k, n_cells)
+        rf = self.t.rf_db_per_m[rr, cc]  # (k, n_cells)
         obstruction = rf.sum(axis=0) * (d / k)
         m = self.budget - (self.pl_1m + 10 * self.n * np.log10(d)) - obstruction
         m = m.reshape(self.t.shape)

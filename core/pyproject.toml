@@ -6,14 +6,31 @@ build-backend = "setuptools.build_meta"
 name = "trecsar-core"
 version = "0.1.0"
 description = "Link-aware Bayesian search planning for search-and-rescue ground robots"
+authors = [{ name = "Mustafa R. Khan" }]
+keywords = ["search and rescue", "robotics", "ugv", "bayesian search", "ros2", "path planning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = ["numpy>=1.24", "scipy>=1.10"]
+dependencies = ["numpy>=1.24", "scipy>=1.10", "pyyaml>=6", "pillow>=9"]
+
+[project.scripts]
+trecsar = "trecsar_core.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mustafarkhan/trec-sar"
+Issues = "https://github.com/mustafarkhan/trec-sar/issues"
 
 [project.optional-dependencies]
 viz = ["matplotlib>=3.7"]
-test = ["pytest>=7"]
+test = ["pytest>=7", "pytest-cov>=4"]
+dev = ["trecsar-core[viz,test]", "ruff>=0.6", "pre-commit>=3"]
 
 [tool.setuptools]
 packages = ["trecsar_core"]

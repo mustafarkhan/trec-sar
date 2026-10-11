@@ -11,6 +11,7 @@ Outputs are *commands* the wrapper executes:
     ("report", cell)       push the detection + snapshot to the command post
     ("state", name)        state changed (for logging / UI)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -86,7 +87,7 @@ class MissionCore:
     def on_aerial_cue(self, rc: tuple[int, int]) -> None:
         sig = self.m.aerial_cue_sigma_m / self.t.resolution
         self.belief.update_cue(rc, sig, reliability=0.6)
-        self._plan_goal = None          # force a replan
+        self._plan_goal = None  # force a replan
 
     def on_relay_deployed(self, cell: int) -> None:
         self.nodes.append(self.t.rc(cell))
@@ -111,9 +112,19 @@ class MissionCore:
                 for g, _ in self._taboo:
                     gr, gc = self.t.rc(g)
                     blocked |= (((rr - gr) ** 2 + (cc - gc) ** 2) <= 25).ravel()
-            ctx = PlanContext(self.pos, self.belief.p, self.world.detector.value_map(self.belief.p),
-                              self.coverage, self.relays_left, self.m.link_threshold_db, self.m.link_buffer_db,
-                              blocked, self.m.robot_speed_mps, self.m.failsafe_s, tuple(self.nodes))
+            ctx = PlanContext(
+                self.pos,
+                self.belief.p,
+                self.world.detector.value_map(self.belief.p),
+                self.coverage,
+                self.relays_left,
+                self.m.link_threshold_db,
+                self.m.link_buffer_db,
+                blocked,
+                self.m.robot_speed_mps,
+                self.m.failsafe_s,
+                tuple(self.nodes),
+            )
             plan = self.planner.plan(ctx)
             if plan is None:
                 return self._set("RTH") + [("goto", self.t.idx(self.t.base))]

@@ -8,6 +8,7 @@ Monte Carlo and the 3D demo describe one place.
 
 Needs trecsar_core importable (pip install -e core/ from the repo root).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,21 +33,31 @@ STYLE = {
 
 
 def _box(name, x, y, z, sx, sy, sz, rgb, collide=True, alpha=1.0):
-    col = (f"<collision name='{name}_c'><pose>{x:.2f} {y:.2f} {z:.2f} 0 0 0</pose>"
-           f"<geometry><box><size>{sx:.2f} {sy:.2f} {sz:.2f}</size></box></geometry></collision>") if collide else ""
+    col = (
+        (
+            f"<collision name='{name}_c'><pose>{x:.2f} {y:.2f} {z:.2f} 0 0 0</pose>"
+            f"<geometry><box><size>{sx:.2f} {sy:.2f} {sz:.2f}</size></box></geometry></collision>"
+        )
+        if collide
+        else ""
+    )
     r, g, b = rgb
-    return (col + f"<visual name='{name}_v'><pose>{x:.2f} {y:.2f} {z:.2f} 0 0 0</pose>"
-            f"<geometry><box><size>{sx:.2f} {sy:.2f} {sz:.2f}</size></box></geometry>"
-            f"<material><ambient>{r} {g} {b} {alpha}</ambient><diffuse>{r} {g} {b} {alpha}</diffuse></material></visual>")
+    return (
+        col + f"<visual name='{name}_v'><pose>{x:.2f} {y:.2f} {z:.2f} 0 0 0</pose>"
+        f"<geometry><box><size>{sx:.2f} {sy:.2f} {sz:.2f}</size></box></geometry>"
+        f"<material><ambient>{r} {g} {b} {alpha}</ambient><diffuse>{r} {g} {b} {alpha}</diffuse></material></visual>"
+    )
 
 
 def _cyl(name, x, y, radius, h, rgb):
     r, g, b = rgb
-    return (f"<collision name='{name}_c'><pose>{x:.2f} {y:.2f} {h / 2:.2f} 0 0 0</pose>"
-            f"<geometry><cylinder><radius>{radius}</radius><length>{h}</length></cylinder></geometry></collision>"
-            f"<visual name='{name}_v'><pose>{x:.2f} {y:.2f} {h / 2:.2f} 0 0 0</pose>"
-            f"<geometry><cylinder><radius>{radius}</radius><length>{h}</length></cylinder></geometry>"
-            f"<material><ambient>{r} {g} {b} 1</ambient><diffuse>{r} {g} {b} 1</diffuse></material></visual>")
+    return (
+        f"<collision name='{name}_c'><pose>{x:.2f} {y:.2f} {h / 2:.2f} 0 0 0</pose>"
+        f"<geometry><cylinder><radius>{radius}</radius><length>{h}</length></cylinder></geometry></collision>"
+        f"<visual name='{name}_v'><pose>{x:.2f} {y:.2f} {h / 2:.2f} 0 0 0</pose>"
+        f"<geometry><cylinder><radius>{radius}</radius><length>{h}</length></cylinder></geometry>"
+        f"<material><ambient>{r} {g} {b} 1</ambient><diffuse>{r} {g} {b} 1</diffuse></material></visual>"
+    )
 
 
 def runs_of(mask_row):
@@ -87,7 +98,9 @@ def generate(key: str, seed: int, tree_seed: int = 0) -> str:
         for c0, c1 in runs_of(walls_solid[r]):
             x0, y = t.cell_to_xy((r, c0))
             x1, _ = t.cell_to_xy((r, c1 - 1))
-            parts.append(_box(f"w{k}", (x0 + x1) / 2, y, st["wall_h"] / 2, (c1 - c0) * res, res, st["wall_h"], st["wall_rgb"]))
+            parts.append(
+                _box(f"w{k}", (x0 + x1) / 2, y, st["wall_h"] / 2, (c1 - c0) * res, res, st["wall_h"], st["wall_rgb"])
+            )
             k += 1
         for c0, c1 in runs_of(lake[r]):
             x0, y = t.cell_to_xy((r, c0))
@@ -118,8 +131,20 @@ def generate(key: str, seed: int, tree_seed: int = 0) -> str:
             for c0, c1 in runs_of(pm[r]):
                 x0, y = t.cell_to_xy((r, c0))
                 x1, _ = t.cell_to_xy((r, c1 - 1))
-                pp.append(_box(f"p{r}_{c0}", (x0 + x1) / 2, y, 1.0, (c1 - c0) * res, res, 2.0,
-                               (0.95, 0.85, 0.3), collide=False, alpha=0.18))
+                pp.append(
+                    _box(
+                        f"p{r}_{c0}",
+                        (x0 + x1) / 2,
+                        y,
+                        1.0,
+                        (c1 - c0) * res,
+                        res,
+                        2.0,
+                        (0.95, 0.85, 0.3),
+                        collide=False,
+                        alpha=0.18,
+                    )
+                )
         plume = f"<model name='gas_plume'><static>true</static><link name='l'>{''.join(pp)}</link></model>"
 
     cas = sample_casualty(w, np.random.default_rng(seed))

@@ -7,6 +7,7 @@ range — and is documented as a limitation.
 
     ros2 run trecsar_mission yolo_detector --ros-args -p model:=best.pt -p image_topic:=/thermal/image
 """
+
 from __future__ import annotations
 
 import math
@@ -24,7 +25,7 @@ def image_to_numpy(msg: Image) -> np.ndarray:
     if msg.encoding in ("rgb8", "bgr8"):
         arr = np.frombuffer(msg.data, np.uint8).reshape(h, w, 3)
         return arr[..., ::-1].copy() if msg.encoding == "bgr8" else arr.copy()
-    if msg.encoding in ("mono16", "16UC1"):        # thermal L16: stretch to 8 bit
+    if msg.encoding in ("mono16", "16UC1"):  # thermal L16: stretch to 8 bit
         a = np.frombuffer(msg.data, np.uint16).reshape(h, w).astype(np.float32)
         lo, hi = np.percentile(a, 1), np.percentile(a, 99)
         g = np.clip((a - lo) / max(hi - lo, 1.0) * 255, 0, 255).astype(np.uint8)

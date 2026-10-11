@@ -4,6 +4,7 @@ Uses the analytic POD model (range, canopy, line of sight) against the known
 casualty location. Deterministic per seed, so 3D runs can be compared with the
 2D Monte Carlo. Switch to yolo_detector for image-based detection.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -11,9 +12,9 @@ import rclpy
 from geometry_msgs.msg import PointStamped, PoseStamped
 from rclpy.node import Node
 
-from .common import get_world
-
 from trecsar_core.sim import sample_casualty  # noqa: E402
+
+from .common import get_world
 
 
 class SimDetector(Node):

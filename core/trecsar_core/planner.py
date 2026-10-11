@@ -16,6 +16,7 @@ Reactive breadcrumb dropping is the approach popularised by DARPA SubT teams;
 TREC-SAR's difference is that relay placement is driven by the probability map,
 not by signal strength alone.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -38,14 +39,16 @@ def build_graph(t: Terrain) -> csr_matrix:
         r0, r1 = max(0, -dr), rows - max(0, dr)
         c0, c1 = max(0, -dc), cols - max(0, dc)
         a = idx[r0:r1, c0:c1]
-        b = idx[r0 + dr:r1 + dr, c0 + dc:c1 + dc]
+        b = idx[r0 + dr : r1 + dr, c0 + dc : c1 + dc]
         ca = t.cost[r0:r1, c0:c1]
-        cb = t.cost[r0 + dr:r1 + dr, c0 + dc:c1 + dc]
+        cb = t.cost[r0 + dr : r1 + dr, c0 + dc : c1 + dc]
         ok = np.isfinite(ca) & np.isfinite(cb)
-        if dr and dc:   # no corner cutting past impassable cells
-            ok &= np.isfinite(t.cost[r0 + dr:r1 + dr, c0:c1]) & np.isfinite(t.cost[r0:r1, c0 + dc:c1 + dc])
+        if dr and dc:  # no corner cutting past impassable cells
+            ok &= np.isfinite(t.cost[r0 + dr : r1 + dr, c0:c1]) & np.isfinite(t.cost[r0:r1, c0 + dc : c1 + dc])
         step = np.hypot(dr, dc) * t.resolution
-        src.append(a[ok]); dst.append(b[ok]); w.append(step * 0.5 * (ca[ok] + cb[ok]))
+        src.append(a[ok])
+        dst.append(b[ok])
+        w.append(step * 0.5 * (ca[ok] + cb[ok]))
     n = rows * cols
     return csr_matrix((np.concatenate(w), (np.concatenate(src), np.concatenate(dst))), shape=(n, n))
 
@@ -82,8 +85,8 @@ class PathOracle:
 @dataclass
 class Plan:
     goal: int
-    path: list[int]               # flat indices, path[0] == current cell
-    relay_at: int | None = None   # flat index on the path where a relay is to be dropped
+    path: list[int]  # flat indices, path[0] == current cell
+    relay_at: int | None = None  # flat index on the path where a relay is to be dropped
     note: str = ""
     authorized_out_s: float = 0.0  # planned link-loss window (store-and-forward excursion)
 
@@ -92,15 +95,15 @@ class Plan:
 class PlanContext:
     pos: int
     belief_p: np.ndarray
-    value: np.ndarray             # detector.value_map(belief)
-    coverage: np.ndarray          # link margin map of the connected network
+    value: np.ndarray  # detector.value_map(belief)
+    coverage: np.ndarray  # link margin map of the connected network
     relays_left: int
     link_threshold: float
     link_buffer: float
-    blocked: np.ndarray | None = None     # flat bool mask of goals to avoid (recent failsafe)
+    blocked: np.ndarray | None = None  # flat bool mask of goals to avoid (recent failsafe)
     speed_mps: float = 2.22
     failsafe_s: float = 45.0
-    nodes: tuple = ()                     # deployed radio nodes (base first)
+    nodes: tuple = ()  # deployed radio nodes (base first)
 
 
 class BasePlanner:
@@ -119,6 +122,7 @@ class BasePlanner:
 
 class LawnmowerPlanner(BasePlanner):
     """Boustrophedon sweep of a lattice around the LKP, snapped to passable ground."""
+
     name = "lawnmower"
     uses_belief = False
 
@@ -200,11 +204,11 @@ class GreedyBayesPlanner(BasePlanner):
 class TrecSarPlanner(GreedyBayesPlanner):
     name = "trecsar"
     reactive_breadcrumbs = False
-    relay_cost = 1.0              # weight of plans that consume a relay (tuned on seeds 100-159)
-    chain_cost = 0.8              # a relay that only extends the chain (goal still not covered)
-    out_of_link_penalty = 1.0     # bounded excursion: allowed only if it fits the failsafe budget
-    excursion_budget = 0.4        # fraction of failsafe_s the outbound leg may spend out of link
-    store_forward_penalty = 1.0   # commit to a planned link-loss window instead of a relay
+    relay_cost = 1.0  # weight of plans that consume a relay (tuned on seeds 100-159)
+    chain_cost = 0.8  # a relay that only extends the chain (goal still not covered)
+    out_of_link_penalty = 1.0  # bounded excursion: allowed only if it fits the failsafe budget
+    excursion_budget = 0.4  # fraction of failsafe_s the outbound leg may spend out of link
+    store_forward_penalty = 1.0  # commit to a planned link-loss window instead of a relay
     store_forward_always = True
     min_relay_spacing_m = 30.0
 
@@ -230,7 +234,7 @@ class TrecSarPlanner(GreedyBayesPlanner):
             g = int(g)
             base = v[g] / (d[g] + self.travel_offset_m)
             if best is not None and base <= best[0]:
-                break                   # sorted: nothing below can beat the incumbent
+                break  # sorted: nothing below can beat the incumbent
             if cov[g] >= thr:
                 best = (base, Plan(g, self.oracle.path(pred, ctx.pos, g), note="in-link"))
                 continue
@@ -254,8 +258,12 @@ class TrecSarPlanner(GreedyBayesPlanner):
             #     search autonomously, keep the evidence, come back to report.
             if self.store_forward_always or (ctx.relays_left == 0 and not options):
                 t_out = self._out_of_link_time(path, cov, thr, ctx.speed_mps)
-                options.append((base * self.store_forward_penalty,
-                                Plan(g, path, note="store-and-forward", authorized_out_s=2.5 * t_out + 60.0)))
+                options.append(
+                    (
+                        base * self.store_forward_penalty,
+                        Plan(g, path, note="store-and-forward", authorized_out_s=2.5 * t_out + 60.0),
+                    )
+                )
             for s, p in options:
                 if best is None or s > best[0]:
                     best = (s, p)
@@ -278,6 +286,7 @@ class GreedyStoreForwardPlanner(GreedyBayesPlanner):
     Separates how much of TREC-SAR's gain comes from *planning the link loss* versus
     from *placing relays where the probability is*.
     """
+
     name = "greedy_sf"
 
     def plan(self, ctx):

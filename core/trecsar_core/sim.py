@@ -12,6 +12,7 @@ Mission states (same names as the ROS 2 mission manager):
 The key outcome is *time to report*: a detection only helps the casualty once a
 human at the command post has seen it.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -42,20 +43,21 @@ class RunResult:
     relays: list[int] = field(default_factory=list)
     casualty: int = -1
     events: list[tuple[float, str]] = field(default_factory=list)
-    frames: list["Frame"] = field(default_factory=list)   # only with record=True
+    frames: list[Frame] = field(default_factory=list)  # only with record=True
 
 
 @dataclass
 class Frame:
     """Snapshot for mission replays (scripts/make_videos.py)."""
+
     time_s: float
     pos: int
-    belief: np.ndarray        # float32 copy of the probability map
+    belief: np.ndarray  # float32 copy of the probability map
     relays_down: int
     state: str
     connected: bool
     margin_db: float
-    traj_len: int = 0          # how much of RunResult.trajectory exists at this frame
+    traj_len: int = 0  # how much of RunResult.trajectory exists at this frame
 
 
 class World:
@@ -80,12 +82,11 @@ def sample_casualty(world: World, rng: np.random.Generator) -> int:
     return int(rng.choice(p.size, p=p / p.sum()))
 
 
-def run(world: World, planner_name: str, seed: int, record: bool = False,
-        frame_every_s: float = 10.0) -> RunResult:
+def run(world: World, planner_name: str, seed: int, record: bool = False, frame_every_s: float = 10.0) -> RunResult:
     sc, t, m = world.sc, world.sc.terrain, world.sc.mission
     rng = np.random.default_rng(seed)
     casualty = sample_casualty(world, rng)
-    det_rng = np.random.default_rng(seed + 10_000)   # same detection luck across planners
+    det_rng = np.random.default_rng(seed + 10_000)  # same detection luck across planners
     cue_rng = np.random.default_rng(seed + 20_000)
 
     planner = PLANNERS[planner_name](t, world.oracle, world.link)
@@ -96,7 +97,7 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
     coverage = world.link.coverage(nodes)
     relays_left = m.relays
     time = 0.0
-    energy = m.battery_wh * m.cold_derate * 3600.0           # joules
+    energy = m.battery_wh * m.cold_derate * 3600.0  # joules
     state = "SEARCH"
     path: list[int] = []
     planned_relay: int | None = None
@@ -115,20 +116,31 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
     def snap():
         nonlocal next_frame_t
         mg = float(coverage.ravel()[pos])
-        frames.append(Frame(round(float(time), 1), pos, belief.p.astype(np.float32), len(relay_cells), state,
-                            mg >= m.link_threshold_db, mg, len(traj)))
+        frames.append(
+            Frame(
+                round(float(time), 1),
+                pos,
+                belief.p.astype(np.float32),
+                len(relay_cells),
+                state,
+                mg >= m.link_threshold_db,
+                mg,
+                len(traj),
+            )
+        )
         next_frame_t = time + frame_every_s
+
     cue_done = m.aerial_cue_time_s is None
     reactive_last_drop_d = -1e9
     prev_margin = None
     current_goal = None
-    authorized_out = 0.0                      # planned link-loss window from the planner
-    taboo: list[tuple[int, float]] = []      # (goal, expiry time) after a failsafe
+    authorized_out = 0.0  # planned link-loss window from the planner
+    taboo: list[tuple[int, float]] = []  # (goal, expiry time) after a failsafe
     rr_all, cc_all = np.indices(t.shape)
 
     def taboo_disk(g, radius_cells=5):
         gr, gc = t.rc(g)
-        return (((rr_all - gr) ** 2 + (cc_all - gc) ** 2) <= radius_cells ** 2).ravel()
+        return (((rr_all - gr) ** 2 + (cc_all - gc) ** 2) <= radius_cells**2).ravel()
 
     def log(msg):
         if record:
@@ -142,7 +154,6 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
         coverage = world.link.coverage(nodes)
         time += m.relay_drop_s
         log(f"relay {m.relays - relays_left} deployed at {t.rc(cell)}")
-        
 
     def nearest_covered():
         d, pred = world.oracle.from_cell(pos)
@@ -165,8 +176,10 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
                 p_see = 0.8 * (1.0 - 0.9 * t.canopy[cr, cc])
                 sig = m.aerial_cue_sigma_m / t.resolution
                 if cue_rng.random() < p_see:
-                    rc = (int(np.clip(cr + cue_rng.normal(0, sig), 0, t.shape[0] - 1)),
-                          int(np.clip(cc + cue_rng.normal(0, sig), 0, t.shape[1] - 1)))
+                    rc = (
+                        int(np.clip(cr + cue_rng.normal(0, sig), 0, t.shape[0] - 1)),
+                        int(np.clip(cc + cue_rng.normal(0, sig), 0, t.shape[1] - 1)),
+                    )
                     belief.update_cue(rc, sig, reliability=0.6)
                     log(f"aerial cue near {rc}")
                 elif cue_rng.random() < m.aerial_false_cue_rate:
@@ -181,7 +194,9 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
         connected = coverage.ravel()[pos] >= m.link_threshold_db
         if state in ("SEARCH",):
             # battery reserve check (energy to drive home + 30 %)
-            home_j = world.dist_to_base[pos] / m.robot_speed_mps * (m.idle_w + m.move_w_per_mps * m.robot_speed_mps * 1.5)
+            home_j = (
+                world.dist_to_base[pos] / m.robot_speed_mps * (m.idle_w + m.move_w_per_mps * m.robot_speed_mps * 1.5)
+            )
             if energy < 1.3 * home_j:
                 state = "RTH"
                 d, pred = world.oracle.from_cell(pos)
@@ -195,9 +210,19 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
                         blocked = np.zeros(t.n_cells, bool)
                         for g, _ in taboo:
                             blocked |= taboo_disk(g)
-                ctx = PlanContext(pos, belief.p, world.detector.value_map(belief.p), coverage,
-                                  relays_left, m.link_threshold_db, m.link_buffer_db, blocked,
-                                  m.robot_speed_mps, m.failsafe_s, tuple(nodes))
+                ctx = PlanContext(
+                    pos,
+                    belief.p,
+                    world.detector.value_map(belief.p),
+                    coverage,
+                    relays_left,
+                    m.link_threshold_db,
+                    m.link_buffer_db,
+                    blocked,
+                    m.robot_speed_mps,
+                    m.failsafe_s,
+                    tuple(nodes),
+                )
                 plan = planner.plan(ctx)
                 steps_since_plan = 0
                 if plan is None or len(plan.path) < 2:
@@ -210,8 +235,9 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
                     current_goal = plan.goal
                     planned_relay = plan.relay_at
                     if plan.authorized_out_s > 0:
+                        if authorized_out == 0:
+                            log(f"planned link-loss window authorised ({plan.authorized_out_s:.0f} s)")
                         authorized_out = max(authorized_out, plan.authorized_out_s)
-                        log(f"store-and-forward excursion authorised ({plan.authorized_out_s:.0f} s)")
                     if planned_relay is not None:
                         log(f"plan: goal {t.rc(plan.goal)} with relay at {t.rc(planned_relay)}")
 
@@ -249,7 +275,7 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
         steps_since_plan += 1
         prev_pos, prev_margin = pos, coverage.ravel()[pos]
         d_step = world.oracle.g[pos, nxt]
-        if d_step == 0:     # not adjacent (should not happen) — replan
+        if d_step == 0:  # not adjacent (should not happen) — replan
             path = []
             continue
         dt = d_step / m.robot_speed_mps
@@ -269,14 +295,18 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
         if planned_relay is not None and pos == planned_relay and relays_left > 0:
             drop_relay(pos)
             planned_relay = None
-            path = []                       # replan with the extended coverage
+            path = []  # replan with the extended coverage
         elif planner.reactive_breadcrumbs and relays_left > 0 and state == "SEARCH":
             # SubT-style breadcrumb: signal fell through the warning band -> drop at the
             # last cell that was still well connected (robot backs up one cell).
             mg = coverage.ravel()[pos]
             band = m.link_threshold_db + m.link_buffer_db
-            if mg < band and prev_margin is not None and prev_margin >= m.link_threshold_db \
-                    and distance - reactive_last_drop_d > 60.0:
+            if (
+                mg < band
+                and prev_margin is not None
+                and prev_margin >= m.link_threshold_db
+                and distance - reactive_last_drop_d > 60.0
+            ):
                 drop_relay(prev_pos if mg < m.link_threshold_db else pos)
                 reactive_last_drop_d = distance
 
@@ -315,6 +345,21 @@ def run(world: World, planner_name: str, seed: int, record: bool = False,
         state = "TIMEOUT"
     if record:
         snap()
-    return RunResult(planner_name, sc.key, seed, t_report is not None, t_detect, t_report,
-                     out_total, m.relays - relays_left, distance, failsafe_events, state,
-                     traj, relay_cells, casualty, events, frames)
+    return RunResult(
+        planner_name,
+        sc.key,
+        seed,
+        t_report is not None,
+        t_detect,
+        t_report,
+        out_total,
+        m.relays - relays_left,
+        distance,
+        failsafe_events,
+        state,
+        traj,
+        relay_cells,
+        casualty,
+        events,
+        frames,
+    )

@@ -1,4 +1,5 @@
 """Unit and behaviour tests for the TREC-SAR core. Run: pytest -q core/tests"""
+
 import sys
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from trecsar_core import SCENARIOS, Belief, Detector, LinkModel, World, build, prior_map, run  # noqa: E402
-from trecsar_core.planner import PLANNERS, PathOracle, PlanContext  # noqa: E402
+from trecsar_core.planner import PLANNERS, PlanContext  # noqa: E402
 
 KEYS = list(SCENARIOS)
 
@@ -87,8 +88,8 @@ def test_rock_blocks_radio_in_tunnel_and_relay_extends_coverage():
     lm = LinkModel(sc.terrain)
     base = sc.terrain.base
     cov0 = lm.coverage([base])
-    assert cov0[sc.terrain.lkp] < lm.threshold          # work face is out of reach
-    relay = (50, 40)                                     # junction on the main adit
+    assert cov0[sc.terrain.lkp] < lm.threshold  # work face is out of reach
+    relay = (50, 40)  # junction on the main adit
     assert lm.margin(base, relay) >= lm.threshold
     cov1 = lm.coverage([base, relay])
     assert np.all(cov1 >= cov0 - 1e-9)
@@ -121,12 +122,11 @@ def test_planners_return_valid_paths(worlds, name):
     t = w.sc.terrain
     planner = PLANNERS[name](t, w.oracle, w.link)
     cov = w.link.coverage([t.base])
-    ctx = PlanContext(t.idx(t.base), w.prior, w.detector.value_map(w.prior), cov, 3, 10.0, 4.0,
-                      nodes=(t.base,))
+    ctx = PlanContext(t.idx(t.base), w.prior, w.detector.value_map(w.prior), cov, 3, 10.0, 4.0, nodes=(t.base,))
     plan = planner.plan(ctx)
     assert plan is not None and plan.path[0] == ctx.pos and plan.path[-1] == plan.goal
     for a, b in zip(plan.path[:-1], plan.path[1:]):
-        assert w.oracle.g[a, b] > 0                       # adjacent and passable
+        assert w.oracle.g[a, b] > 0  # adjacent and passable
     if plan.relay_at is not None:
         assert plan.relay_at in plan.path
 

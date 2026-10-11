@@ -1,6 +1,9 @@
 # TREC-SAR — from a fielded army UGV to civilian search and rescue
 
 [![ci](https://github.com/mustafarkhan/trec-sar/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafarkhan/trec-sar/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue)
+![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy-22314E)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 This repository continues **TREC**, a tele-operated tracked ground robot I worked on as an engineer in the
 Pakistan Army's Corps of Electrical & Mechanical Engineers (EME), and rebuilds its ideas for civilian search and
@@ -89,40 +92,97 @@ Full tables with 95 % confidence intervals: [`results/summary.md`](results/summa
 
 ![Time to report](results/time_to_report.png)
 
-## What is in the repository
-
-```
-core/            trecsar_core: terrain, Bayesian probability map, radio link model, detector model,
-                 planners, mission simulator, live-robot mission logic   (pure Python, tested)
-scripts/         run_experiments.py (Monte Carlo), make_figures.py, make_videos.py (mission replays → MP4)
-media/           LinkedIn and GitHub videos, README GIF
-results/         summary.md, results.csv, figures
-ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimensions)
-                 trecsar_gazebo       Gazebo Harmonic worlds generated from the same scenarios
-                 trecsar_mission      ROS 2 nodes: mission manager, radio-link simulator, drone stub, detectors
-                 trecsar_bringup      one-command launch with SLAM + Nav2 + RViz
-perception/      Colab notebook to train a thermal person detector on HIT-UAV; VOC→YOLO converter
-docs/            concept, scenarios (CONOPS), research basis, failure modes, running guide
-docker/          ROS 2 Jazzy + Gazebo container
-```
-
 ## Quick start
 
-**2D simulator and experiments (any laptop, about 3 minutes):**
+Requires Python 3.10+. Works on Linux, macOS and Windows.
 
 ```bash
-pip install numpy scipy matplotlib pytest
-pytest -q core/tests                          # 29 tests (+1 in ros2_ws)
-python3 scripts/run_experiments.py --runs 200 # writes results/
-python3 scripts/make_figures.py
-python3 scripts/make_videos.py --which both   # needs ffmpeg; ~10 min
+git clone https://github.com/mustafarkhan/trec-sar.git && cd trec-sar
+pip install -e "core[viz]"
+
+trecsar scenarios                                           # list built-in scenarios
+trecsar run --scenario forest_winter --seed 1002 --events   # one mission, with its event log
+trecsar compare --scenario tunnel --seed 1003 --plot compare.png   # all planners, same mission
+trecsar bench --runs 200                                    # the full held-out benchmark (~3 min)
 ```
 
-**3D demo (Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image):** see [`docs/RUNNING.md`](docs/RUNNING.md).
+Example output:
+
+```
+Underground tunnel network — missing worker after rock fall  ·  seed 1003
+    lawnmower  NOT REPORTED (FAILED)      relays 4  out-of-link 16.67 min  distance 5775 m  failsafe 17
+ greedy_bayes  NOT REPORTED (TIMEOUT)     relays 4  out-of-link 28.63 min  distance 6005 m  failsafe 28
+    greedy_sf  REPORTED at 13.25 min      relays 4  out-of-link 1.56 min  distance 1255 m  failsafe 0
+      trecsar  REPORTED at 13.2 min       relays 0  out-of-link 8.67 min  distance 1332 m  failsafe 1
+```
+
+Every command accepts `--json` for scripting. Python API:
+
+```python
+from trecsar_core import World, build, run
+
+world = World(build("hazmat_industrial"))
+result = run(world, "trecsar", seed=5, record=True)
+print(result.success, result.time_report_s, result.relays_used, result.events[:3])
+```
+
+### Model your own site
+
+Paint a map (one pixel = one grid cell, one colour per terrain type), describe it in a few lines of YAML, and
+every planner, the benchmark and the plots work on it:
+
+```bash
+trecsar compare --site examples/sites/campus/site.yaml --seed 2 --plot campus.png
+```
+
+Built-in terrain classes: `open, road, trail, forest, dense_forest, bog, rubble, corridor, water, building, rock,
+cliff`; you can add your own with cost, radio loss, canopy and lost-person affinity. See
+[`examples/sites/campus/site.yaml`](examples/sites/campus/site.yaml) and [`core/trecsar_core/site.py`](core/trecsar_core/site.py).
+
+### ROS 2
+
+**Headless (no GPU, no Gazebo)** — the full mission stack with a stand-in robot, the same test CI runs on every push:
 
 ```bash
 cd ros2_ws && colcon build --symlink-install && source install/setup.bash
+ros2 launch trecsar_bringup headless.launch.py scenario:=hazmat_industrial seed:=5
+ros2 topic echo --once /trecsar/report          # casualty report JSON
+```
+
+**3D demo (Gazebo Harmonic + SLAM + Nav2 + RViz)** — Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image; see
+[`docs/RUNNING.md`](docs/RUNNING.md):
+
+```bash
 ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter planner:=trecsar
+```
+
+## Engineering quality
+
+| | |
+|---|---|
+| Tests | 38 unit, behaviour and CLI tests on Python 3.10–3.13, with coverage |
+| ROS 2 | All four packages built in CI on ROS 2 Jazzy; end-to-end headless mission must deliver a casualty report |
+| Reproducibility | Fixed seeds; tuning seeds (100–159) separate from evaluation seeds (1000–1199); Gazebo worlds regenerated and diffed in CI |
+| Code style | `ruff` lint + format, pre-commit hooks |
+| Failure analysis | FMEA-style table of failure modes and limitations in [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md) |
+
+## What is in the repository
+
+```
+core/            trecsar_core: terrain, probability map, radio model, sensor model, planners, mission simulator,
+                 live-robot mission logic, custom sites, CLI, benchmark, plotting       (pure Python, tested)
+examples/sites/  custom site example (campus park)
+scripts/         make_figures.py, make_videos.py (mission replays → MP4), run_experiments.py
+results/         summary.md, results.csv, figures
+media/           LinkedIn and GitHub videos, README GIF
+ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimensions)
+                 trecsar_gazebo       Gazebo Harmonic worlds generated from the same scenarios
+                 trecsar_mission      ROS 2 nodes: mission manager, radio-link simulator, drone stub, detectors,
+                                      headless fake robot
+                 trecsar_bringup      launch files: 3D (SLAM + Nav2 + RViz) and headless
+perception/      Colab notebook to train a thermal person detector on HIT-UAV; VOC→YOLO converter
+docs/            concept, scenarios (CONOPS), research basis, failure modes, running guide
+docker/          ROS 2 Jazzy + Gazebo container
 ```
 
 ## How it works (one paragraph)
@@ -148,8 +208,15 @@ in open source, but I make no claim that nobody has done it. See [`docs/RESEARCH
 ## Limitations
 
 All results are simulation. Radio, detection and lost-person parameters are plausible placeholders, not field
-calibration. The 3D stack uses a ground-truth pose shortcut and has not been tested on hardware. Full list:
+calibration. The ROS 2 stack is built and exercised end to end in CI with a headless stand-in robot; the Gazebo +
+Nav2 configuration uses a ground-truth pose shortcut and has not been tested on hardware. TREC-SAR is not certified
+for operational use. Full list:
 [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md).
+
+## Contributing and citing
+
+Field data, new sites and planners are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). If you use TREC-SAR in
+research, please cite it via [`CITATION.cff`](CITATION.cff) (GitHub shows a "Cite this repository" button).
 
 ## License
 

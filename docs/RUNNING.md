@@ -5,9 +5,9 @@
 ```bash
 git clone https://github.com/mustafarkhan/trec-sar.git && cd trec-sar
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -e "core[viz,test]"
+pip install -e "core[dev]"
 pytest -q core/tests
-python3 scripts/run_experiments.py --runs 200            # ~3 min on 2 cores
+trecsar bench --runs 200                                 # ~3 min on 2 cores
 python3 scripts/make_figures.py
 ```
 

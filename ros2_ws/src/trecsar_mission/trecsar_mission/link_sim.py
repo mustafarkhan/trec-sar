@@ -5,6 +5,7 @@ same LinkModel the planner uses, and *gates the operator video*: camera frames
 reach /operator/camera only while the link is up. That makes link loss visible
 in RViz exactly as an operator would experience it.
 """
+
 from __future__ import annotations
 
 import rclpy

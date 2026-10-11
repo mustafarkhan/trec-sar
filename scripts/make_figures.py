@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Figures for the README: success rates, time-to-report curves, relays, scenario maps.
 
-    python3 scripts/make_figures.py          # needs results/results.csv
+python3 scripts/make_figures.py          # needs results/results.csv
 """
+
 from __future__ import annotations
 
 import csv
@@ -21,20 +22,36 @@ sys.path.insert(0, str(ROOT / "core"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from trecsar_core import World, build, run  # noqa: E402
-from run_experiments import PLANNERS, variants  # noqa: E402
+from trecsar_core.bench import PLANNERS, variants  # noqa: E402
 
 OUT = ROOT / "results"
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 COLOR = {"trecsar": "#2a78d6", "greedy_sf": "#eb6834", "greedy_bayes": "#1baf7a", "lawnmower": "#eda100"}
-SHORT = {"trecsar": "TREC-SAR", "greedy_sf": "Greedy + planned link loss",
-         "greedy_bayes": "Greedy + reactive relays", "lawnmower": "Lawnmower + reactive relays"}
+SHORT = {
+    "trecsar": "TREC-SAR",
+    "greedy_sf": "Greedy + planned link loss",
+    "greedy_bayes": "Greedy + reactive relays",
+    "lawnmower": "Lawnmower + reactive relays",
+}
 
-plt.rcParams.update({
-    "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
-    "axes.edgecolor": GRID, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
-    "text.color": INK, "font.size": 10, "axes.titlesize": 11, "axes.titleweight": "bold",
-    "axes.spines.top": False, "axes.spines.right": False, "font.family": "DejaVu Sans",
-})
+plt.rcParams.update(
+    {
+        "figure.facecolor": SURFACE,
+        "axes.facecolor": SURFACE,
+        "savefig.facecolor": SURFACE,
+        "axes.edgecolor": GRID,
+        "axes.labelcolor": INK2,
+        "xtick.color": INK2,
+        "ytick.color": INK2,
+        "text.color": INK,
+        "font.size": 10,
+        "axes.titlesize": 11,
+        "axes.titleweight": "bold",
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "font.family": "DejaVu Sans",
+    }
+)
 
 
 def load():
@@ -45,7 +62,7 @@ def load():
 def success_and_relays(rows):
     vs = variants()
     fig, axes = plt.subplots(2, len(vs), figsize=(17, 6.4), sharey="row")
-    order = list(reversed(PLANNERS))     # TREC-SAR on top
+    order = list(reversed(PLANNERS))  # TREC-SAR on top
     for j, (vkey, (vtitle, _)) in enumerate(vs.items()):
         for i, metric in enumerate(("success", "relays_used")):
             ax = axes[i, j]
@@ -56,8 +73,14 @@ def success_and_relays(rows):
             y = np.arange(len(order))
             ax.barh(y, vals, height=0.62, color=[COLOR[p] for p in order], edgecolor=SURFACE, linewidth=2)
             for yy, v in zip(y, vals):
-                ax.text(v + (0.02 if metric == "success" else 0.06), yy,
-                        f"{v:.0%}" if metric == "success" else f"{v:.1f}", va="center", fontsize=9, color=INK)
+                ax.text(
+                    v + (0.02 if metric == "success" else 0.06),
+                    yy,
+                    f"{v:.0%}" if metric == "success" else f"{v:.1f}",
+                    va="center",
+                    fontsize=9,
+                    color=INK,
+                )
             ax.set_yticks(y, [SHORT[p] for p in order])
             ax.grid(axis="x", color=GRID, linewidth=0.8)
             ax.set_axisbelow(True)
@@ -94,9 +117,11 @@ def time_curves(rows):
         ax.grid(color=GRID, linewidth=0.8)
         ax.set_axisbelow(True)
     axes[0].set_ylabel("Casualties reported so far")
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc="upper right", ncol=4, frameon=False, fontsize=9)
-    fig.suptitle("How fast the command post gets the casualty on video", x=0.01, ha="left", fontsize=13, fontweight="bold")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper right", ncol=4, frameon=False, fontsize=9)
+    fig.suptitle(
+        "How fast the command post gets the casualty on video", x=0.01, ha="left", fontsize=13, fontweight="bold"
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     fig.savefig(OUT / "time_to_report.png", dpi=150)
     plt.close(fig)
@@ -105,9 +130,16 @@ def time_curves(rows):
 def terrain_rgb(t):
     """Muted terrain basemap: lighter = easier ground."""
     img = np.ones(t.shape + (3,)) * np.array([0.93, 0.95, 0.91])
-    shade = {"dense spruce": (0.78, 0.86, 0.78), "bog (suo)": (0.86, 0.84, 0.74), "trail": (0.97, 0.94, 0.86),
-             "road": (0.86, 0.86, 0.86), "tunnels": (0.96, 0.95, 0.92), "rock-fall rubble": (0.80, 0.74, 0.68),
-             "pipe racks": (0.86, 0.86, 0.90), "gas plume (no humans)": (0.98, 0.88, 0.84)}
+    shade = {
+        "dense spruce": (0.78, 0.86, 0.78),
+        "bog (suo)": (0.86, 0.84, 0.74),
+        "trail": (0.97, 0.94, 0.86),
+        "road": (0.86, 0.86, 0.86),
+        "tunnels": (0.96, 0.95, 0.92),
+        "rock-fall rubble": (0.80, 0.74, 0.68),
+        "pipe racks": (0.86, 0.86, 0.90),
+        "gas plume (no humans)": (0.98, 0.88, 0.84),
+    }
     for name, mask in t.labels.items():
         if name in shade:
             img[mask] = shade[name]
@@ -125,28 +157,35 @@ def scenario_map(key, seed):
         r = run(w, p, seed, record=True)
         ax.imshow(terrain_rgb(t), interpolation="nearest")
         prior = w.prior / w.prior.max()
-        ax.imshow(np.ma.masked_less(prior, 0.3), cmap=ListedColormap(["#7d4fd6"]), alpha=0.22,
-                  interpolation="nearest")
+        ax.imshow(np.ma.masked_less(prior, 0.3), cmap=ListedColormap(["#7d4fd6"]), alpha=0.22, interpolation="nearest")
         nodes = [t.base] + [t.rc(c) for c in r.relays]
         cov = w.link.coverage(nodes)
-        ax.contour(cov >= w.sc.mission.link_threshold_db, levels=[0.5], colors=[INK2], linewidths=1.0,
-                   linestyles="--")
+        ax.contour(cov >= w.sc.mission.link_threshold_db, levels=[0.5], colors=[INK2], linewidths=1.0, linestyles="--")
         tr = np.array([t.rc(c) for c in r.trajectory])
         ax.plot(tr[:, 1], tr[:, 0], color=COLOR[p], linewidth=1.8)
-        for (rr, cc) in nodes[1:]:
+        for rr, cc in nodes[1:]:
             ax.plot(cc, rr, marker="^", markersize=10, color=INK, markeredgecolor=SURFACE, markeredgewidth=1.5)
         ax.plot(t.base[1], t.base[0], marker="s", markersize=10, color=INK, markeredgecolor=SURFACE)
-        ax.annotate("command post", (t.base[1], t.base[0]), xytext=(6, -8), textcoords="offset points",
-                    fontsize=8, color=INK)
+        ax.annotate(
+            "command post", (t.base[1], t.base[0]), xytext=(6, -8), textcoords="offset points", fontsize=8, color=INK
+        )
         cr, cc_ = t.rc(r.casualty)
         ax.plot(cc_, cr, marker="X", markersize=12, color="#e34948", markeredgecolor=SURFACE, markeredgewidth=1.5)
         status = f"reported at {r.time_report_s / 60:.1f} min" if r.success else f"not reported ({r.end_state.lower()})"
-        ax.set_title(f"{SHORT[p]} — {status}\nrelays {r.relays_used}, out of link {r.out_of_link_s / 60:.1f} min",
-                     fontsize=10)
-        ax.set_xticks([]); ax.set_yticks([])
+        ax.set_title(
+            f"{SHORT[p]} — {status}\nrelays {r.relays_used}, out of link {r.out_of_link_s / 60:.1f} min", fontsize=10
+        )
+        ax.set_xticks([])
+        ax.set_yticks([])
     fig.suptitle(f"{w.sc.title} (seed {seed})", x=0.01, ha="left", fontsize=12, fontweight="bold")
-    fig.text(0.01, 0.015, "Grey = impassable · purple tint = highest initial probability · dashed = live radio coverage "
-             "(final) · ▲ relay · ■ command post · ✕ casualty", fontsize=8.5, color=INK2)
+    fig.text(
+        0.01,
+        0.015,
+        "Grey = impassable · purple tint = highest initial probability · dashed = live radio coverage "
+        "(final) · ▲ relay · ■ command post · ✕ casualty",
+        fontsize=8.5,
+        color=INK2,
+    )
     fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     fig.savefig(OUT / f"map_{key}.png", dpi=130)
     plt.close(fig)

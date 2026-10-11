@@ -1,0 +1,20 @@
+# Example custom site. Run:  trecsar run --site examples/sites/campus/site.yaml --plot campus.png
+name: campus
+title: University campus park, night - missing student
+map: campus.png            # each pixel = one cell, row 0 = top (north)
+resolution_m: 5
+legend:
+  "#ffffff": open
+  "#808080": road
+  "#c8a060": trail
+  "#1f5f1f": forest
+  "#0f3f0f": dense_forest
+  "#2060c0": water
+  "#000000": building
+base: [87, 2]              # command post on the ring road, [row, col]
+lkp: [46, 40]              # last seen where the walkway meets the park
+person: {category: young adult, median_distance_m: 160, sigma_log: 0.7}
+mission: {time_limit_min: 40, relays: 2, aerial_cue_time_s: 120}
+narrative: >
+  A student walked into the campus park after midnight and stopped answering the phone.
+  Campus security launches the UGV from the ring road; a drone covers the open lawns.

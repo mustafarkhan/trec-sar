@@ -5,6 +5,7 @@ sends one noisy "possible person here" cue at `cue_time_s`, with the same
 canopy-dependent hit / false-alarm model as the 2D simulator. Replace with a
 PX4 SITL drone + the trained detector for full air-ground teaming.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,9 +13,9 @@ import rclpy
 from geometry_msgs.msg import PointStamped
 from rclpy.node import Node
 
-from .common import get_world
-
 from trecsar_core.sim import sample_casualty  # noqa: E402
+
+from .common import get_world
 
 
 class AerialSpotter(Node):
@@ -22,7 +23,7 @@ class AerialSpotter(Node):
         super().__init__("trecsar_aerial_spotter")
         self.declare_parameter("scenario", "forest_winter")
         self.declare_parameter("casualty_seed", 1002)
-        self.declare_parameter("cue_time_s", -1.0)          # <0: use the scenario default
+        self.declare_parameter("cue_time_s", -1.0)  # <0: use the scenario default
         w = get_world(self.get_parameter("scenario").value)
         self.w, self.t = w, w.sc.terrain
         seed = int(self.get_parameter("casualty_seed").value)
@@ -49,8 +50,10 @@ class AerialSpotter(Node):
         cr, cc = self.casualty
         sig = m.aerial_cue_sigma_m / self.t.resolution
         if self.rng.random() < 0.8 * (1.0 - 0.9 * self.t.canopy[cr, cc]):
-            rc = (int(np.clip(cr + self.rng.normal(0, sig), 0, self.t.shape[0] - 1)),
-                  int(np.clip(cc + self.rng.normal(0, sig), 0, self.t.shape[1] - 1)))
+            rc = (
+                int(np.clip(cr + self.rng.normal(0, sig), 0, self.t.shape[0] - 1)),
+                int(np.clip(cc + self.rng.normal(0, sig), 0, self.t.shape[1] - 1)),
+            )
         elif self.rng.random() < m.aerial_false_cue_rate:
             p = self.w.prior.ravel()
             rc = self.t.rc(int(self.rng.choice(p.size, p=p / p.sum())))
