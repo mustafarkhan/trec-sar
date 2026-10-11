@@ -41,7 +41,7 @@ def download() -> Path:
     if not zips:
         raise SystemExit("no zip in the Zenodo record")
     f = max(zips, key=lambda x: x.get("size", 0))
-    dest = WORK / f["key"]
+    dest = WORK / Path(f["key"]).name
     if not dest.exists():
         url = f["links"].get("self") or f["links"].get("download")
         log(f"downloading {f['key']} from {url}")
