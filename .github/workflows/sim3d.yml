@@ -1,0 +1,60 @@
+name: sim3d
+# Full 3D stack: Gazebo Harmonic (headless) + slam_toolbox + Nav2 + TREC-SAR mission nodes.
+# Passes only if the robot finds the casualty and the report reaches /trecsar/report.
+on:
+  push:
+    branches: [main]
+    paths: ["ros2_ws/**", "core/trecsar_core/**", ".github/workflows/sim3d.yml"]
+  workflow_dispatch:
+
+jobs:
+  gazebo-nav2-mission:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Gazebo, Nav2, SLAM
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ros-jazzy-ros-gz ros-jazzy-navigation2 ros-jazzy-slam-toolbox ros-jazzy-xacro \
+            ros-jazzy-robot-state-publisher python3-pip python3-scipy python3-yaml python3-pil \
+            libegl1 libgl1-mesa-dri mesa-utils procps
+          pip install --break-system-packages -e core
+      - name: Build
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cd ros2_ws && colcon build --event-handlers console_direct-
+      - name: Mission in Gazebo with SLAM + Nav2
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source ros2_ws/install/setup.bash
+          ros2 launch trecsar_bringup bringup.launch.py scenario:=hazmat_industrial \
+            headless:=true rviz:=false cameras:=false > /tmp/sim3d.log 2>&1 &
+          LAUNCH=$!
+          ( sleep 90; ros2 node list > /tmp/nodes.txt 2>&1; ros2 topic list > /tmp/topics.txt 2>&1;
+            timeout 10 ros2 topic hz /scan > /tmp/scan_hz.txt 2>&1;
+            timeout 10 ros2 topic echo --once /trecsar/ground_truth_pose > /tmp/pose.txt 2>&1;
+            timeout 10 ros2 topic echo --once /clock > /tmp/clock.txt 2>&1 ) &
+          if timeout 1800 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report.txt; then
+            STATUS=0
+          else
+            STATUS=1
+          fi
+          kill $LAUNCH || true; sleep 3
+          python3 .github/scripts/annotate.py notice "Casualty report" /tmp/report.txt 20
+          python3 .github/scripts/annotate.py notice "Mission events" /tmp/sim3d.log 40 "state ->|relay|CASUALTY|person detected|aerial cue|Nav2 not ready"
+          if [ $STATUS -ne 0 ]; then
+            python3 .github/scripts/annotate.py error "Nodes after 90 s" /tmp/nodes.txt 60
+            python3 .github/scripts/annotate.py error "Scan rate" /tmp/scan_hz.txt 10
+            python3 .github/scripts/annotate.py error "Pose sample" /tmp/pose.txt 20
+            python3 .github/scripts/annotate.py error "Clock sample" /tmp/clock.txt 10
+            python3 .github/scripts/annotate.py error "Errors in log" /tmp/sim3d.log 50 "ERROR|Error|error|WARN|Failed|failed"
+            python3 .github/scripts/annotate.py error "Log tail" /tmp/sim3d.log 50
+          fi
+          exit $STATUS

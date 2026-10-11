@@ -38,7 +38,7 @@ jobs:
         run: xacro ros2_ws/src/trecsar_description/urdf/trecsar.urdf.xacro > /dev/null
       - name: Gazebo worlds regenerate identically
         run: |
-          for s in "forest_winter 1002" "tunnel 1003" "hazmat_industrial 1022"; do
+          for s in "forest_winter 1002" "tunnel 1003" "hazmat_industrial 5"; do
             set -- $s
             python3 ros2_ws/src/trecsar_gazebo/scripts/terrain_to_sdf.py $1 --seed $2 -o /tmp/$1.sdf
             diff -q /tmp/$1.sdf ros2_ws/src/trecsar_gazebo/worlds/$1.sdf

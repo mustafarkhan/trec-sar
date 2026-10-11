@@ -9,6 +9,7 @@
   relay-node dropper replace the original gun mount / mine detector / arm.
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="trecsar">
+  <xacro:arg name="cameras" default="true"/>  <!-- false: lidar only (faster headless sim / CI) -->
   <xacro:property name="L" value="0.84"/>
   <xacro:property name="W" value="0.42"/>
   <xacro:property name="H" value="0.20"/>
@@ -129,6 +130,7 @@
     </plugin>
   </gazebo>
 
+  <xacro:if value="$(arg cameras)">
   <gazebo reference="camera_link">
     <sensor name="rgb_camera" type="camera">
       <gz_frame_id>camera_optical</gz_frame_id>
@@ -145,6 +147,8 @@
         <clip><near>0.1</near><far>80</far></clip></camera>
     </sensor>
   </gazebo>
+
+  </xacro:if>
 
   <gazebo reference="lidar_link">
     <sensor name="lidar" type="gpu_lidar">

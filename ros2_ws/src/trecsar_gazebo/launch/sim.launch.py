@@ -28,6 +28,8 @@ def _setup(context):
     desc_share = get_package_share_directory("trecsar_description")
     world = os.path.join(gz_share, "worlds", f"{scenario}.sdf")
     x, y, yaw = SPAWN[scenario]
+    headless = LaunchConfiguration("headless").perform(context).lower() == "true"
+    cameras = LaunchConfiguration("cameras").perform(context)
 
     # bridge config needs the world name for the joint_state topic
     with open(os.path.join(gz_share, "config", "bridge.yaml")) as f:
@@ -37,14 +39,15 @@ def _setup(context):
         f.write(bridge_cfg)
 
     robot_description = ParameterValue(
-        Command(["xacro ", os.path.join(desc_share, "urdf", "trecsar.urdf.xacro")]), value_type=str
+        Command(["xacro ", os.path.join(desc_share, "urdf", "trecsar.urdf.xacro"), f" cameras:={cameras}"]),
+        value_type=str,
     )
 
     gz = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(get_package_share_directory("ros_gz_sim"), "launch", "gz_sim.launch.py")
         ),
-        launch_arguments={"gz_args": f"-r {world}"}.items(),
+        launch_arguments={"gz_args": f"-r -s --headless-rendering {world}" if headless else f"-r {world}"}.items(),
     )
 
     return [
@@ -85,6 +88,8 @@ def _setup(context):
 def generate_launch_description():
     return LaunchDescription(
         [
+            DeclareLaunchArgument("headless", default_value="false", description="server only, no GUI"),
+            DeclareLaunchArgument("cameras", default_value="true", description="simulate RGB + thermal cameras"),
             DeclareLaunchArgument(
                 "scenario", default_value="forest_winter", description="forest_winter | tunnel | hazmat_industrial"
             ),
