@@ -151,15 +151,22 @@ class MissionManager(Node):
         def done(f, h=handle):
             if self.goal_handle is not h:  # ignore results of preempted / cancelled goals
                 return
-            if f.result().status != GoalStatus.STATUS_SUCCEEDED:
-                self.segment_failures += 1
-            if self.route:
+            ok = f.result().status == GoalStatus.STATUS_SUCCEEDED
+            final = self.route[-1] if self.route else None
+            if ok and self.route:
                 self.route.pop(0)
-            if self.route and self.segment_failures < 3:
-                self._send_next_segment()
-            else:
-                self.route = []
-                self.goal_reached = True
+                if self.route:
+                    self._send_next_segment()
+                    return
+            elif not ok and final is not None and self.segment_failures < 3:
+                # re-route from where the robot actually is, not from the stale plan
+                self.segment_failures += 1
+                failures = self.segment_failures
+                self.send_goal(final)
+                self.segment_failures = failures
+                return
+            self.route = []
+            self.goal_reached = True
 
         handle.get_result_async().add_done_callback(done)
 
