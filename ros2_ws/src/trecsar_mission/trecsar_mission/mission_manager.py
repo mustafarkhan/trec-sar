@@ -124,6 +124,8 @@ class MissionManager(Node):
             self.route.append(cell)
         self.segment_failures = 0
         self.goal_reached = False
+        gx, gy = self.t.cell_to_xy(self.t.rc(cell))
+        self.get_logger().info(f"goal ({gx:.0f}, {gy:.0f}) via {len(self.route)} segment(s)")
         self._send_next_segment()
 
     def _send_next_segment(self):
@@ -153,6 +155,8 @@ class MissionManager(Node):
                 return
             ok = f.result().status == GoalStatus.STATUS_SUCCEEDED
             final = self.route[-1] if self.route else None
+            if not ok:
+                self.get_logger().info(f"segment failed (status {f.result().status}); re-routing")
             if ok and self.route:
                 self.route.pop(0)
                 if self.route:
