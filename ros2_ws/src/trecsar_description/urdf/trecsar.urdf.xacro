@@ -50,8 +50,10 @@
   <xacro:track_belt side="left" y="${track_y}"/>
   <xacro:track_belt side="right" y="${-track_y}"/>
 
-  <!-- road wheels (physics) -->
-  <xacro:macro name="wheel" params="name x y">
+  <!-- road wheels (physics). Tracks are approximated the usual way for Gazebo: the centre
+       wheels carry the traction and the front/rear wheels are low-friction, so the robot can
+       pivot on the spot like the real tracked platform instead of jamming in a 6-wheel skid. -->
+  <xacro:macro name="wheel" params="name x y mu">
     <link name="${name}">
       <collision><origin rpy="${pi/2} 0 0"/><geometry><cylinder radius="${wheel_r}" length="${wheel_w}"/></geometry></collision>
       <inertial><mass value="2.0"/><inertia ixx="0.006" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.006"/></inertial>
@@ -60,15 +62,15 @@
       <parent link="base_link"/><child link="${name}"/><origin xyz="${x} ${y} 0"/><axis xyz="0 1 0"/>
     </joint>
     <gazebo reference="${name}">
-      <collision><surface><friction><ode><mu>1.0</mu><mu2>0.25</mu2></ode></friction></surface></collision>
+      <mu1>${mu}</mu1><mu2>${mu}</mu2>  <!-- sdformat converts these into the collision surface -->
     </gazebo>
   </xacro:macro>
-  <xacro:wheel name="left_front" x="${L/2 - wheel_r}" y="${track_y}"/>
-  <xacro:wheel name="left_mid" x="0" y="${track_y}"/>
-  <xacro:wheel name="left_rear" x="${-L/2 + wheel_r}" y="${track_y}"/>
-  <xacro:wheel name="right_front" x="${L/2 - wheel_r}" y="${-track_y}"/>
-  <xacro:wheel name="right_mid" x="0" y="${-track_y}"/>
-  <xacro:wheel name="right_rear" x="${-L/2 + wheel_r}" y="${-track_y}"/>
+  <xacro:wheel name="left_front" x="${L/2 - wheel_r}" y="${track_y}" mu="0.05"/>
+  <xacro:wheel name="left_mid" x="0" y="${track_y}" mu="1.0"/>
+  <xacro:wheel name="left_rear" x="${-L/2 + wheel_r}" y="${track_y}" mu="0.05"/>
+  <xacro:wheel name="right_front" x="${L/2 - wheel_r}" y="${-track_y}" mu="0.05"/>
+  <xacro:wheel name="right_mid" x="0" y="${-track_y}" mu="1.0"/>
+  <xacro:wheel name="right_rear" x="${-L/2 + wheel_r}" y="${-track_y}" mu="0.05"/>
 
   <!-- sensor mast: RGB camera + thermal camera -->
   <link name="mast">
