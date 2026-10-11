@@ -92,11 +92,13 @@
   </link>
   <joint name="thermal_joint" type="fixed"><parent link="mast"/><child link="thermal_link"/><origin xyz="0.03 0 0.44"/></joint>
 
-  <!-- 3D lidar for SLAM / Nav2 -->
+  <!-- 2D lidar for SLAM / Nav2 -->
   <link name="lidar_link">
     <visual><geometry><cylinder radius="0.05" length="0.07"/></geometry><material name="black"/></visual>
   </link>
-  <joint name="lidar_joint" type="fixed"><parent link="base_link"/><child link="lidar_link"/><origin xyz="0.05 0 ${H + 0.05}"/></joint>
+  <!-- on top of the mast, above every part of the robot: a lower mount let the lidar see the
+       relay bay, which Nav2 then treated as a permanent obstacle -->
+  <joint name="lidar_joint" type="fixed"><parent link="mast"/><child link="lidar_link"/><origin xyz="0 0 0.62"/></joint>
 
   <link name="imu_link"/>
   <joint name="imu_joint" type="fixed"><parent link="base_link"/><child link="imu_link"/><origin xyz="0 0 0.05"/></joint>
