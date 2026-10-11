@@ -16,12 +16,13 @@ import numpy as np
 from .scenarios import build
 from .sim import World, run
 
-PLANNERS = ["lawnmower", "greedy_bayes", "greedy_sf", "trecsar"]
+PLANNERS = ["lawnmower", "greedy_bayes", "greedy_sf", "trecsar", "trecsar_cal"]
 LABELS = {
     "lawnmower": "Lawnmower sweep + reactive relays",
     "greedy_bayes": "Probability-greedy + reactive relays",
     "greedy_sf": "Probability-greedy + planned link loss (ablation)",
     "trecsar": "TREC-SAR (link-aware, planned relays)",
+    "trecsar_cal": "TREC-SAR + online radio calibration",
 }
 EVAL_SEED0 = 1000
 
@@ -31,6 +32,10 @@ def variants():
         "forest_winter": ("Forest, winter (3 relays)", dict(key="forest_winter")),
         "forest_1relay": ("Forest, only 1 relay", dict(key="forest_winter", relays=1)),
         "forest_wrong_lkp": ("Forest, wrong last-known point (~95 m)", dict(key="forest_winter", offset=(-12, 10))),
+        "forest_radio_worse": (
+            "Forest, radio 1.8x worse than planned (wet snow on spruce)",
+            dict(key="forest_winter", radio={"rf_scale": 1.8, "exponent": 2.4}),
+        ),
         "tunnel": ("Tunnel after rock fall", dict(key="tunnel")),
         "hazmat_industrial": ("Industrial chemical release", dict(key="hazmat_industrial")),
     }
@@ -46,6 +51,8 @@ def _world(vkey):
         sc = build(spec["key"], **kw)
         if "offset" in spec:
             sc.truth_lkp_offset = spec["offset"]
+        if "radio" in spec:
+            sc.radio_truth = spec["radio"]
         _WORLDS[vkey] = World(sc)
     return _WORLDS[vkey]
 

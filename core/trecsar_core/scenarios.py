@@ -58,6 +58,10 @@ class Scenario:
     mission: MissionConfig
     narrative: str
     truth_lkp_offset: tuple[int, int] = (0, 0)  # for prior-mismatch stress tests
+    # Radio-mismatch stress test: the real propagation differs from the planning model.
+    # {"rf_scale": x} multiplies every terrain attenuation, {"exponent": n} replaces the
+    # path-loss exponent. Empty = the planning model is exact.
+    radio_truth: dict = field(default_factory=dict)
 
 
 def _noise(rng, shape, sigma):

@@ -8,9 +8,16 @@ import numpy as np
 
 from .sim import RunResult, World
 
-COLOR = {"trecsar": "#2a78d6", "greedy_sf": "#eb6834", "greedy_bayes": "#1baf7a", "lawnmower": "#eda100"}
+COLOR = {
+    "trecsar_cal": "#7b4fd6",
+    "trecsar": "#2a78d6",
+    "greedy_sf": "#eb6834",
+    "greedy_bayes": "#1baf7a",
+    "lawnmower": "#eda100",
+}
 NAME = {
     "trecsar": "TREC-SAR",
+    "trecsar_cal": "TREC-SAR + radio calibration",
     "greedy_sf": "Greedy + planned link loss",
     "greedy_bayes": "Greedy + reactive relays",
     "lawnmower": "Lawnmower + reactive relays",

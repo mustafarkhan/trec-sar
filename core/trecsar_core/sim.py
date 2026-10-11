@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .belief import Belief, prior_map
+from .calibrate import RadioCalibrator
 from .detector import Detector
 from .link import LinkModel
 from .planner import PLANNERS, PathOracle, PlanContext
@@ -68,7 +69,13 @@ class World:
         t = sc.terrain
         m = sc.mission
         self.oracle = PathOracle(t)
-        self.link = LinkModel(t, threshold_db=m.link_threshold_db, **m.radio)
+        self.link = LinkModel(t, threshold_db=m.link_threshold_db, **m.radio)  # planning model
+        rt = sc.radio_truth
+        self.link_truth = (
+            self.link.variant(exponent=rt.get("exponent"), rf_map=t.rf_db_per_m * rt.get("rf_scale", 1.0))
+            if rt
+            else self.link
+        )  # how radio really propagates on this site
         self.detector = Detector(t, m.sense_radius_m, m.detect_pmax, m.detect_r0_m, m.canopy_occlusion)
         self.prior = prior_map(t, sc.person)
         lkp_truth = (t.lkp[0] + sc.truth_lkp_offset[0], t.lkp[1] + sc.truth_lkp_offset[1])
@@ -91,10 +98,23 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
 
     planner = PLANNERS[planner_name](t, world.oracle, world.link)
     belief = Belief(world.prior, 1.0 - world.prior.sum())
+    truth = world.link_truth
+    cal = RadioCalibrator(world.link) if getattr(planner, "calibrates", False) else None
+    meas_rng = np.random.default_rng(seed + 30_000)
+    obs_since_fit = 0
 
     pos = t.idx(t.base)
     nodes = [t.base]
-    coverage = world.link.coverage(nodes)
+
+    def predicted_coverage():
+        """Coverage as the robot's radio model predicts it, over the nodes that really are on the mesh."""
+        if planner.link is truth:
+            return coverage
+        conn = truth.connected_nodes(nodes)
+        return np.max(np.stack([planner.link.margin_map(n) for n in conn]), axis=0)
+
+    coverage = truth.coverage(nodes)  # what the radios actually achieve
+    plan_cov = predicted_coverage()  # what the planner believes
     relays_left = m.relays
     time = 0.0
     energy = m.battery_wh * m.cold_derate * 3600.0  # joules
@@ -147,20 +167,29 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
             events.append((round(float(time), 1), msg))
 
     def drop_relay(cell):
-        nonlocal relays_left, coverage, time
+        nonlocal relays_left, coverage, plan_cov, time
         nodes.append(t.rc(cell))
         relay_cells.append(cell)
         relays_left -= 1
-        coverage = world.link.coverage(nodes)
+        coverage = truth.coverage(nodes)
+        plan_cov = predicted_coverage()
         time += m.relay_drop_s
         log(f"relay {m.relays - relays_left} deployed at {t.rc(cell)}")
 
     def nearest_covered():
+        """Path to the nearest cell the radio model says is covered. If the model was wrong and
+        the robot is already there without a link, fall back to the nearest radio node itself."""
         d, pred = world.oracle.from_cell(pos)
-        ok = (coverage.ravel() >= m.link_threshold_db + 1.0) & np.isfinite(d)
-        if not ok.any():
+        ok = (plan_cov.ravel() >= m.link_threshold_db + 1.0) & np.isfinite(d)
+        if ok.any():
+            g = int(np.argmin(np.where(ok, d, np.inf)))
+            if g != pos:
+                return world.oracle.path(pred, pos, g)
+        conn = [t.idx(n) for n in truth.connected_nodes(nodes)]
+        g = min(conn, key=lambda c: d[c])
+        if g == pos or not np.isfinite(d[g]):
             return []
-        g = int(np.argmin(np.where(ok, d, np.inf)))
+        log("predicted coverage was wrong here -> back to the nearest radio node")
         return world.oracle.path(pred, pos, g)
 
     # initial look from the start position
@@ -214,7 +243,7 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
                     pos,
                     belief.p,
                     world.detector.value_map(belief.p),
-                    coverage,
+                    plan_cov,
                     relays_left,
                     m.link_threshold_db,
                     m.link_buffer_db,
@@ -258,6 +287,8 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
             path = []
             out_since = None
             log("link restored")
+        elif state == "LINK_RECOVERY" and not path:
+            path = nearest_covered()  # reached the predicted coverage and still no link
 
         if state == "RTH" and pos == t.idx(t.base):
             state = "FAILED" if t_report is None else "DONE"
@@ -309,6 +340,17 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
             ):
                 drop_relay(prev_pos if mg < m.link_threshold_db else pos)
                 reactive_last_drop_d = distance
+
+        # ---- radio calibration from signal-strength readings ----------------------
+        if cal is not None:
+            rc_pos = t.rc(pos)
+            best = max(truth.connected_nodes(nodes), key=lambda n: truth.margin_map(n)[rc_pos])
+            reading = float(truth.margin_map(best)[rc_pos]) + meas_rng.normal(0.0, 2.0)
+            obs_since_fit += cal.observe(best, rc_pos, reading)
+            if obs_since_fit >= 25:
+                obs_since_fit = 0
+                planner.link = cal.model()
+                plan_cov = predicted_coverage()
 
         # ---- link bookkeeping ---------------------------------------------------
         connected = coverage.ravel()[pos] >= m.link_threshold_db

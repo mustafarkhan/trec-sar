@@ -3,6 +3,27 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — 2026-10-12
+
+### Added
+- **Online radio calibration** (`trecsar_core.calibrate.RadioCalibrator`): Bayesian linear regression of path-loss
+  exponent and per-terrain attenuation from signal-strength readings, used by the new `trecsar_cal` planner in
+  simulation and by `MissionCore` on the live robot.
+- Benchmark variant *Forest, radio 1.8× worse than planned*; the simulator separates the radio's true propagation
+  from the planner's model (`Scenario.radio_truth`).
+- Full 3D mission in CI (`sim3d.yml`): Gazebo Harmonic + Nav2 + mission nodes; passes only when the casualty
+  report reaches the command post. Ground-truth localisation node for CI; slam_toolbox remains available.
+- Thermal person detector trained and evaluated in CI on HIT-UAV (`perception.yml`): held-out test mAP@0.5 0.90,
+  precision 0.88, recall 0.88; weights in `perception/weights/`.
+- Tests: calibration, Gazebo world checks (visual-only geometry below the lidar), robot model.
+
+### Fixed
+- Gas plume in the Gazebo world was a 2 m translucent volume that the GPU lidar saw as a wall; now a ground decal.
+- Lidar moved to the top of the mast (it was seeing the robot's own relay bay).
+- Skid-steer traction (centre wheels carry traction), Nav2 controller tuning, route segmentation for long goals,
+  link-recovery retries, a taboo list for goals Nav2 could not reach.
+- When the radio model is wrong, link recovery falls back to the nearest radio node instead of failing.
+
 ## [0.1.0] — 2026-10-11
 
 ### Added
