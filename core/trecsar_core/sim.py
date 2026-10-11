@@ -42,6 +42,20 @@ class RunResult:
     relays: list[int] = field(default_factory=list)
     casualty: int = -1
     events: list[tuple[float, str]] = field(default_factory=list)
+    frames: list["Frame"] = field(default_factory=list)   # only with record=True
+
+
+@dataclass
+class Frame:
+    """Snapshot for mission replays (scripts/make_videos.py)."""
+    time_s: float
+    pos: int
+    belief: np.ndarray        # float32 copy of the probability map
+    relays_down: int
+    state: str
+    connected: bool
+    margin_db: float
+    traj_len: int = 0          # how much of RunResult.trajectory exists at this frame
 
 
 class World:
@@ -66,7 +80,8 @@ def sample_casualty(world: World, rng: np.random.Generator) -> int:
     return int(rng.choice(p.size, p=p / p.sum()))
 
 
-def run(world: World, planner_name: str, seed: int, record: bool = False) -> RunResult:
+def run(world: World, planner_name: str, seed: int, record: bool = False,
+        frame_every_s: float = 10.0) -> RunResult:
     sc, t, m = world.sc, world.sc.terrain, world.sc.mission
     rng = np.random.default_rng(seed)
     casualty = sample_casualty(world, rng)
@@ -94,6 +109,15 @@ def run(world: World, planner_name: str, seed: int, record: bool = False) -> Run
     events: list[tuple[float, str]] = []
     traj = [pos] if record else []
     relay_cells: list[int] = []
+    frames: list[Frame] = []
+    next_frame_t = 0.0
+
+    def snap():
+        nonlocal next_frame_t
+        mg = float(coverage.ravel()[pos])
+        frames.append(Frame(round(float(time), 1), pos, belief.p.astype(np.float32), len(relay_cells), state,
+                            mg >= m.link_threshold_db, mg, len(traj)))
+        next_frame_t = time + frame_every_s
     cue_done = m.aerial_cue_time_s is None
     reactive_last_drop_d = -1e9
     prev_margin = None
@@ -284,9 +308,13 @@ def run(world: World, planner_name: str, seed: int, record: bool = False) -> Run
                 log(f"PERSON DETECTED at {t.rc(casualty)} (robot at {t.rc(pos)})")
             else:
                 belief.update_negative_sparse(idx, pod)
+        if record and time >= next_frame_t:
+            snap()
 
     if state not in ("DONE", "FAILED"):
         state = "TIMEOUT"
+    if record:
+        snap()
     return RunResult(planner_name, sc.key, seed, t_report is not None, t_detect, t_report,
                      out_total, m.relays - relays_left, distance, failsafe_events, state,
-                     traj, relay_cells, casualty, events)
+                     traj, relay_cells, casualty, events, frames)
