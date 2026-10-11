@@ -14,7 +14,7 @@ So the planning question is not "where is the person most likely to be?" but:
 ## System
 
 ```
-  Drone (aerial spotter)          UGV (LUOTSI)                         Command post
+  Drone (aerial spotter)          UGV (TREC-SAR)                         Command post
   thermal person detector  ──cue──▶ probability map (Bayesian)  ──video/report──▶ operator
                                     planner: goal + relay + link window
                                     Nav2 / SLAM, thermal + RGB mast
@@ -46,7 +46,7 @@ Every replan (on reaching a goal, after a relay drop, after a drone cue, or ever
 loss: drive to the nearest covered cell), `SEARCH → REPORT → DONE` (on detection: get into coverage and push the
 report), `SEARCH → RTH` (battery reserve: energy home × 1.3, with a cold-weather derate in winter).
 
-The failsafe is the direct descendant of TREC's blinking-LED connection indicator. The difference is that LUOTSI
+The failsafe is the direct descendant of TREC's blinking-LED connection indicator. The difference is that TREC-SAR
 plans *around* it instead of being surprised by it.
 
 ## Models (all replaceable)

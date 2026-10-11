@@ -1,6 +1,6 @@
 # Failure modes and limitations
 
-Written in an FMEA style: what can fail, what happens, how LUOTSI handles it, and what is still open.
+Written in an FMEA style: what can fail, what happens, how TREC-SAR handles it, and what is still open.
 Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
 
 | # | Failure | Effect | Current handling | Open |
@@ -31,6 +31,6 @@ Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
 
 ## Ethics and dual use
 
-LUOTSI is designed for civilian search and rescue. The original TREC platform carried weapon and mine-detection
+TREC-SAR is designed for civilian search and rescue. The original TREC platform carried weapon and mine-detection
 payloads; none of that is part of this project. Public material should not include operational details of
 military trials or identifiable personnel photos.

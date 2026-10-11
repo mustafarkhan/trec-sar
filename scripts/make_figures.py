@@ -20,13 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from luotsi_core import World, build, run  # noqa: E402
+from trecsar_core import World, build, run  # noqa: E402
 from run_experiments import PLANNERS, variants  # noqa: E402
 
 OUT = ROOT / "results"
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
-COLOR = {"luotsi": "#2a78d6", "greedy_sf": "#eb6834", "greedy_bayes": "#1baf7a", "lawnmower": "#eda100"}
-SHORT = {"luotsi": "LUOTSI", "greedy_sf": "Greedy + planned link loss",
+COLOR = {"trecsar": "#2a78d6", "greedy_sf": "#eb6834", "greedy_bayes": "#1baf7a", "lawnmower": "#eda100"}
+SHORT = {"trecsar": "TREC-SAR", "greedy_sf": "Greedy + planned link loss",
          "greedy_bayes": "Greedy + reactive relays", "lawnmower": "Lawnmower + reactive relays"}
 
 plt.rcParams.update({
@@ -45,7 +45,7 @@ def load():
 def success_and_relays(rows):
     vs = variants()
     fig, axes = plt.subplots(2, len(vs), figsize=(17, 6.4), sharey="row")
-    order = list(reversed(PLANNERS))     # LUOTSI on top
+    order = list(reversed(PLANNERS))     # TREC-SAR on top
     for j, (vkey, (vtitle, _)) in enumerate(vs.items()):
         for i, metric in enumerate(("success", "relays_used")):
             ax = axes[i, j]
@@ -86,7 +86,7 @@ def time_curves(rows):
             t = np.sort([float(r["time_report_s"]) / 60 for r in rs if r["success"] == "1"])
             xs = np.concatenate([[0], t, [tl]])
             ys = np.concatenate([[0], np.arange(1, len(t) + 1) / len(rs), [len(t) / len(rs)]])
-            ax.step(xs, ys, where="post", color=COLOR[p], linewidth=2.2 if p == "luotsi" else 1.6, label=SHORT[p])
+            ax.step(xs, ys, where="post", color=COLOR[p], linewidth=2.2 if p == "trecsar" else 1.6, label=SHORT[p])
         ax.set_title(vs[vkey][0], fontsize=10)
         ax.set_xlabel("Minutes since robot launch")
         ax.set_ylim(0, 1.02)
@@ -121,7 +121,7 @@ def scenario_map(key, seed):
     w = World(build(key))
     t = w.sc.terrain
     fig, axes = plt.subplots(1, 2, figsize=(12, 6.2))
-    for ax, p in zip(axes, ["greedy_bayes", "luotsi"]):
+    for ax, p in zip(axes, ["greedy_bayes", "trecsar"]):
         r = run(w, p, seed, record=True)
         ax.imshow(terrain_rgb(t), interpolation="nearest")
         prior = w.prior / w.prior.max()
@@ -153,14 +153,14 @@ def scenario_map(key, seed):
 
 
 def pick_seed(key, lo=1000, hi=1200):
-    """First held-out seed where LUOTSI reports and the link-unaware greedy policy does not."""
+    """First held-out seed where TREC-SAR reports and the link-unaware greedy policy does not."""
     w = World(build(key))
     for s in range(lo, hi):
-        a, b = run(w, "luotsi", s), run(w, "greedy_bayes", s)
+        a, b = run(w, "trecsar", s), run(w, "greedy_bayes", s)
         if a.success and not b.success:
             return s
     for s in range(lo, hi):
-        a, b = run(w, "luotsi", s), run(w, "greedy_bayes", s)
+        a, b = run(w, "trecsar", s), run(w, "greedy_bayes", s)
         if a.success and b.success and a.time_report_s < b.time_report_s:
             return s
     return lo

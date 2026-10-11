@@ -1,6 +1,6 @@
 # Research basis and positioning
 
-LUOTSI stands on established work. This page says what is borrowed, what is new, and what is assumed.
+TREC-SAR stands on established work. This page says what is borrowed, what is new, and what is assumed.
 
 ## Borrowed foundations
 
@@ -15,7 +15,7 @@ LUOTSI stands on established work. This page says what is borrowed, what is new,
 | Thermal drone dataset | Suo et al., "HIT-UAV", *Scientific Data* 10:227 (2023) | Training the aerial person detector |
 | Vegetation radio attenuation | ITU-R Recommendation P.833 | Order of magnitude of forest attenuation |
 
-## What LUOTSI adds
+## What TREC-SAR adds
 
 1. **Relay placement driven by the probability map**, not by signal strength alone. Relays are dropped at the last
    well-connected point on the way to an area that is both likely and out of coverage.
@@ -25,7 +25,7 @@ LUOTSI stands on established work. This page says what is borrowed, what is new,
 4. **An open, reproducible civilian benchmark**: three operational scenarios, four policies, held-out seeds,
    confidence intervals, and a 3D world generated from the same terrain.
 
-Communication-aware planning is an active research area in multi-robot exploration; LUOTSI does not claim to be
+Communication-aware planning is an active research area in multi-robot exploration; TREC-SAR does not claim to be
 the first to consider radio in planning. The contribution is the specific SAR combination and the open benchmark.
 
 ## Key finding from the ablation

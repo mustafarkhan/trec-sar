@@ -1,11 +1,11 @@
-# Using LUOTSI for your CV, LinkedIn and interviews
+# Using TREC-SAR for your CV, LinkedIn and interviews
 
 Everything here is framed as a **project**, not a company. Replace anything in [brackets] before posting, and only
 claim what you have run yourself.
 
 ## GitHub
 
-- **Repository name:** `luotsi`
+- **Repository name:** `trec-sar`
 - **Description:** Link-aware search planning for rescue ground robots — Bayesian search, radio-relay placement and
   planned link loss. ROS 2 Jazzy, Gazebo, Nav2, YOLO.
 - **Topics:** `search-and-rescue` `ros2` `gazebo` `nav2` `ugv` `bayesian-search` `robotics` `drones` `yolo`
@@ -14,7 +14,17 @@ claim what you have run yourself.
 
 ## CV — Projects section
 
-**LUOTSI — Link-aware search planner for rescue ground robots** · Open source · [Month 2026]
+Put TREC first: it is the fielded system. TREC-SAR shows what you can build today.
+
+**TREC — Tele-operated, Tracked, Reconfigurable UGV** · Pakistan Army EME / NUST College of E&ME · [years]
+- [Your exact role — e.g. "Led control and integration of the NI cRIO-9012 drive and payload interfaces"] on an
+  80 kg tracked UGV (8 km/h, two cameras, 30 m night vision) with reconfigurable payloads: manipulator arm,
+  land-mine detector and weapon mount.
+- Demonstrated the system to the Commander, 11 Corps.
+- Delivered the prototype with manipulator to 212 Brigade for field trials and testing.
+- Operator console with live video, connection failsafe and battery monitoring.
+
+**TREC-SAR — Civilian search-and-rescue successor to TREC** · Independent open-source project · [Month 2026]
 *Python, NumPy/SciPy, ROS 2 Jazzy, Gazebo Harmonic, Nav2, slam_toolbox, YOLO11, Docker, GitHub Actions*
 
 - Designed a search planner for a tracked rescue UGV that jointly chooses search goals, radio-relay placement and
@@ -25,16 +35,12 @@ claim what you have run yourself.
   while using about half the relay nodes (about 90 % fewer in tunnels); documented where the method does not help.
 - Implemented the ROS 2 stack (mission manager, radio-link simulator with operator-video gating, drone-cue stub,
   detectors), a URDF model of the TREC-heritage UGV, and Gazebo worlds generated from the planner's terrain.
-- Applied QA practice: 29+ unit and behaviour tests, CI, FMEA-style failure-mode analysis, held-out evaluation.
+- Applied QA practice: 30 unit and behaviour tests, CI, FMEA-style failure-mode analysis, held-out evaluation.
 
-**TREC — Tele-operated tracked reconfigurable UGV** · NUST College of E&ME, Department of Mechatronics · [year]
-- [Your exact role — e.g. "Control and integration of the NI cRIO-9012 drive and payload interfaces"] on an 80 kg
-  tracked UGV with swappable payloads, video feedback and a link-loss failsafe.
-- Prototype progressed to field trials with an army unit.
-
-> For European civilian employers keep the TREC line to engineering facts. Leave out weapon payload testing,
-> named units and operational locations. For defence employers (Milrem, Patria, Saab) you can say more in the
-> interview, but check what you are allowed to share.
+> Keep the two clearly separate. TREC is the army record; TREC-SAR is your own simulation project. Never describe
+> TREC-SAR results as army trials. For defence employers (Milrem, Patria, Saab) the weapon-mount and field-trial
+> details help; for civilian employers you may prefer to lead with the arm, mine detector and brigade trials.
+> Check what you are permitted to share about military work.
 
 ## LinkedIn — headline addition
 
@@ -43,8 +49,9 @@ claim what you have run yourself.
 ## LinkedIn — post series (one per day)
 
 **Day 1 — the origin story**
-> Years ago, as an engineer in the Pakistan Army's EME corps, I worked on TREC: a tracked, reconfigurable ground
-> robot. Its link-loss warning was a blinking green LED on the operator's screen.
+> As an engineer in the Pakistan Army's EME corps, I worked on TREC: an 80 kg tracked, reconfigurable ground robot.
+> We demonstrated it to the Corps Commander and delivered the prototype to a brigade for field trials. Its link-loss
+> warning was a blinking green LED on the operator's screen.
 >
 > This week I'm rebuilding the idea for civilian search and rescue in Europe, fully open source, with one question
 > at the centre: a robot that finds a missing person while out of radio range hasn't helped anyone yet.
@@ -75,7 +82,7 @@ claim what you have run yourself.
 > known point. I wrote them all down in an FMEA table. Simulation is a starting point, not evidence.
 
 **Day 7 — open invitation**
-> LUOTSI is open source (Apache-2.0). If you work in rescue services, rescue robotics, or radio for difficult
+> TREC-SAR is open source (Apache-2.0). If you work in rescue services, rescue robotics, or radio for difficult
 > environments in Finland or the Nordics, I'd value 20 minutes of your criticism.
 
 *Before posting the TREC photos: they show identifiable officers and weapon payloads. Crop to the robot, or describe
@@ -89,4 +96,4 @@ it instead of showing the poster.*
 3. **Held-out seeds and confidence intervals** — tuned on 100–159, evaluated on 1000–1199.
 4. **What I'd do with hardware** — radio site survey, thermal detection tests under spruce, battery logs in cold;
    replace each placeholder model with measured data.
-5. **TREC → LUOTSI** — same hull spec, but the link failsafe went from a warning LED to a planning constraint.
+5. **TREC → TREC-SAR** — same hull spec, but the link failsafe went from a warning LED to a planning constraint.

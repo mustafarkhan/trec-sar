@@ -1,0 +1,67 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 6
+      Plane Cell Count: 100
+    - Class: rviz_default_plugins/Map
+      Name: SLAM map
+      Enabled: true
+      Topic:
+        Value: /map
+        Durability Policy: Transient Local
+    - Class: rviz_default_plugins/Map
+      Name: Probability of area (belief)
+      Enabled: true
+      Color Scheme: costmap
+      Alpha: 0.55
+      Topic:
+        Value: /trecsar/belief
+    - Class: rviz_default_plugins/Map
+      Name: Radio coverage
+      Enabled: false
+      Color Scheme: map
+      Alpha: 0.3
+      Topic:
+        Value: /trecsar/coverage
+    - Class: rviz_default_plugins/RobotModel
+      Name: TREC-SAR UGV
+      Enabled: true
+      Description Topic:
+        Value: /robot_description
+    - Class: rviz_default_plugins/LaserScan
+      Name: Lidar
+      Enabled: true
+      Size (m): 0.08
+      Topic:
+        Value: /scan
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Radio nodes
+      Enabled: true
+      Topic:
+        Value: /trecsar/relays
+    - Class: rviz_default_plugins/Path
+      Name: Nav2 plan
+      Enabled: true
+      Topic:
+        Value: /plan
+    - Class: rviz_default_plugins/Image
+      Name: Operator video (only when link is up)
+      Enabled: true
+      Topic:
+        Value: /operator/camera
+  Global Options:
+    Fixed Frame: map
+    Background Color: 48; 48; 48
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/SetGoal
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Scale: 3

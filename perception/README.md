@@ -2,10 +2,10 @@
 
 Two detectors, two viewpoints:
 
-| Where | Job in LUOTSI | Training data | Status |
+| Where | Job in TREC-SAR | Training data | Status |
 |---|---|---|---|
 | **Drone (aerial spotter)** | Send a "possible person here" cue that the UGV fuses into its probability map | HIT-UAV thermal (person class), optionally HERIDAL RGB | Notebook ready: `train_sar_yolo.ipynb` (free Colab T4) |
-| **UGV camera mast** | Confirm the person at close range before reporting | COCO-pretrained `yolo11n.pt` (person = class 0) | Used as-is by `ros2 run luotsi_mission yolo_detector` |
+| **UGV camera mast** | Confirm the person at close range before reporting | COCO-pretrained `yolo11n.pt` (person = class 0) | Used as-is by `ros2 run trecsar_mission yolo_detector` |
 
 The 2D Monte Carlo and the default 3D demo use an **analytic detection model** (range, canopy and line of sight)
 instead of images, so experiments are reproducible. The image detectors are what you would run on real hardware.

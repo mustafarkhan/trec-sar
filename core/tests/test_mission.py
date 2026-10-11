@@ -7,9 +7,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from luotsi_core import World, build  # noqa: E402
-from luotsi_core.mission import MissionCore  # noqa: E402
-from luotsi_core.sim import sample_casualty  # noqa: E402
+from trecsar_core import World, build  # noqa: E402
+from trecsar_core.mission import MissionCore  # noqa: E402
+from trecsar_core.sim import sample_casualty  # noqa: E402
 
 
 def drive(key, seed, max_steps=4000):

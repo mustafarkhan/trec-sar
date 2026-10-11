@@ -1,0 +1,7 @@
+# Shared parameters for the TREC-SAR mission nodes. scenario / spawn are overridden by bringup.launch.py.
+/**:
+  ros__parameters:
+    use_sim_time: true
+    planner: trecsar          # trecsar | greedy_sf | greedy_bayes | lawnmower
+    casualty_seed: 1002      # must match the seed the world was generated with
+    tick_hz: 1.0
