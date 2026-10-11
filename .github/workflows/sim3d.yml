@@ -27,6 +27,27 @@ jobs:
         run: |
           source /opt/ros/jazzy/setup.bash
           cd ros2_ws && colcon build --event-handlers console_direct-
+      - name: Motion check (bare robot, no Nav2)
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source ros2_ws/install/setup.bash
+          ros2 launch trecsar_gazebo sim.launch.py scenario:=hazmat_industrial headless:=true cameras:=false \
+            > /tmp/motion_sim.log 2>&1 &
+          SIM=$!
+          sleep 40
+          P="--field pose"
+          { echo "== start";   timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose $P;
+            timeout 8 ros2 topic pub -r 10 --times 60 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.5}}" > /dev/null;
+            echo "== after 6 s forward 0.5 m/s"; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose $P;
+            timeout 8 ros2 topic pub -r 10 --times 60 /cmd_vel geometry_msgs/msg/Twist "{angular: {z: 0.5}}" > /dev/null;
+            echo "== after 6 s turning 0.5 rad/s"; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose $P;
+            echo "== odom"; timeout 8 ros2 topic echo --once /odom --field pose.pose; } > /tmp/motion.txt 2>&1
+          kill $SIM || true; sleep 5; pkill -f "gz sim" || true; pkill -f ros_gz || true; sleep 2
+          python3 .github/scripts/annotate.py notice "Motion check" /tmp/motion.txt 60
+          python3 .github/scripts/annotate.py notice "Motion check sim log" /tmp/motion_sim.log 25 "ERROR|Error|error|WARN|Warn"
       - name: Mission in Gazebo with SLAM + Nav2
         shell: bash
         env:
@@ -44,9 +65,10 @@ jobs:
             ros2 lifecycle get /bt_navigator > /tmp/lifecycle.txt 2>&1 || true;
             ros2 lifecycle get /slam_toolbox >> /tmp/lifecycle.txt 2>&1 || true ) &
           ( sleep 240; timeout 8 ros2 topic echo --once /cmd_vel > /tmp/cmd_vel.txt 2>&1 || true;
-            timeout 8 ros2 topic echo --once /odom --field twist > /tmp/odom.txt 2>&1 || true;
-            timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose.position >> /tmp/odom.txt 2>&1 || true;
-            sleep 60; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose.position >> /tmp/odom.txt 2>&1 || true;
+            timeout 8 ros2 topic echo --once /odom --field pose.pose > /tmp/odom.txt 2>&1 || true;
+            timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose >> /tmp/odom.txt 2>&1 || true;
+            timeout 8 ros2 topic echo --once /plan --field poses > /tmp/plan.txt 2>&1 || true;
+            sleep 60; timeout 8 ros2 topic echo --once /trecsar/ground_truth_pose --field pose >> /tmp/odom.txt 2>&1 || true;
             timeout 8 ros2 topic echo --once /cmd_vel >> /tmp/cmd_vel.txt 2>&1 || true ) &
           if timeout 1800 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report.txt; then
             STATUS=0
@@ -62,7 +84,8 @@ jobs:
             python3 .github/scripts/annotate.py error "TF map to base" /tmp/tf.txt 15
             python3 .github/scripts/annotate.py error "Lifecycle" /tmp/lifecycle.txt 10
             python3 .github/scripts/annotate.py error "cmd_vel at 240 s and 300 s" /tmp/cmd_vel.txt 30
-            python3 .github/scripts/annotate.py error "Odom twist and pose at 240 s / 300 s" /tmp/odom.txt 40
+            python3 .github/scripts/annotate.py error "Odom pose, then ground truth at 240 s / 300 s" /tmp/odom.txt 45
+            python3 .github/scripts/annotate.py error "Plan at 240 s" /tmp/plan.txt 30
             python3 .github/scripts/annotate.py error "Pose sample" /tmp/pose.txt 20
             python3 .github/scripts/annotate.py error "Clock sample" /tmp/clock.txt 10
             python3 .github/scripts/annotate.py error "Errors in log" /tmp/sim3d.log 50 "ERROR|Error|error|WARN|Failed|failed" 
