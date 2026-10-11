@@ -1,0 +1,41 @@
+name: perception
+# Trains the thermal person detector on HIT-UAV (CPU) and commits the measured test metrics.
+on:
+  push:
+    branches: [main]
+    paths: ["perception/train_ci.py", "perception/voc_to_yolo.py", ".github/workflows/perception.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install (CPU PyTorch + Ultralytics)
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install ultralytics requests matplotlib
+      - name: Train and evaluate
+        env:
+          EPOCHS: "25"
+        run: python3 perception/train_ci.py 2>&1 | tee /tmp/train.log
+      - name: Summarise
+        if: always()
+        run: |
+          python3 .github/scripts/annotate.py notice "Perception metrics" results/perception/metrics.json 40 || true
+          python3 .github/scripts/annotate.py warning "Training log" /tmp/train.log 40 "record files|annotations|images|person boxes|Epoch|all |Error|error|Traceback" || true
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/perception
+          git add -f perception/weights/hituav_person_yolo11n.pt
+          git commit -m "Perception: HIT-UAV person detector test metrics [skip ci]" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
