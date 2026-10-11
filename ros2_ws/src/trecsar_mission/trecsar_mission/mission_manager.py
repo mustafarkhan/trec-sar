@@ -19,7 +19,7 @@ import json
 
 import rclpy
 from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import PointStamped, PoseStamped
+from geometry_msgs.msg import PointStamped, PoseStamped, Twist
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import OccupancyGrid
 from rclpy.action import ActionClient
@@ -53,6 +53,14 @@ class MissionManager(Node):
         self.route: list[int] = []  # remaining waypoints (cells); last one is the mission goal
         self.segment_failures = 0
         self.segment_m = float(self.get_parameter("segment_m").value)
+        # stuck detection: TREC-style escape (reverse + turn) when Nav2 recoveries cannot move the robot
+        self.declare_parameter("stuck_after_s", 40.0)
+        self.stuck_after = float(self.get_parameter("stuck_after_s").value)
+        self.xy = None
+        self.last_move = (None, 0.0)  # (xy, time)
+        self.escape_until = None
+        self.escape_count = 0
+        self.pub_cmd = self.create_publisher(Twist, "/cmd_vel", 10)
 
         self.pub_state = self.create_publisher(String, "/trecsar/state", 10)
         self.pub_report = self.create_publisher(String, "/trecsar/report", 10)
@@ -182,8 +190,41 @@ class MissionManager(Node):
 
     # ---- callbacks ----------------------------------------------------------------
     def on_pose(self, msg: PoseStamped):
-        r, c = self.t.xy_to_cell(msg.pose.position.x, msg.pose.position.y)
+        x, y = msg.pose.position.x, msg.pose.position.y
+        self.xy = (x, y)
+        ref, _t = self.last_move
+        if ref is None or (x - ref[0]) ** 2 + (y - ref[1]) ** 2 > 0.5**2:
+            self.last_move = ((x, y), self.now())
+        r, c = self.t.xy_to_cell(x, y)
         self.core.on_pose(self.t.idx((r, c)))
+
+    def _escape_step(self) -> bool:
+        """Drive an escape manoeuvre if wedged. Returns True while it is in progress."""
+        now = self.now()
+        if self.escape_until is not None:
+            start, end = self.escape_until
+            tw = Twist()
+            if now < start + 3.0:
+                tw.linear.x = -0.4  # back away from the obstacle
+            elif now < end:
+                tw.angular.z = 1.0 if self.escape_count % 2 else -1.0  # then turn away
+            else:
+                self.escape_until = None
+                self.pub_cmd.publish(Twist())
+                self.last_move = (self.xy, now)
+                self.goal_reached = True  # let the mission core issue a fresh goal
+                return False
+            self.pub_cmd.publish(tw)
+            return True
+        ref, t0 = self.last_move
+        active = self.core.state in ("SEARCH", "LINK_RECOVERY", "REPORT", "RTH")
+        if active and ref is not None and now - t0 > self.stuck_after:
+            self.escape_count += 1
+            self.get_logger().warn(f"no progress for {now - t0:.0f} s: escape manoeuvre #{self.escape_count}")
+            self.cancel_goal()
+            self.escape_until = (now, now + 5.0)
+            return True
+        return False
 
     def on_link(self, msg: Float32):
         self.execute(self.core.on_link(float(msg.data), self.now()))
@@ -197,6 +238,8 @@ class MissionManager(Node):
         self.get_logger().info("aerial cue fused into the probability map")
 
     def tick(self):
+        if self.dropping_until is None and self._escape_step():
+            return
         if self.dropping_until is not None:
             until, cell = self.dropping_until
             if self.now() < until:

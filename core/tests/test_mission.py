@@ -62,3 +62,21 @@ def test_live_mission_reaches_report(key, seed):
     assert ("report", log[[c[0] for c in log].index("report")][1]) in log
     cov = w.link.coverage(core.nodes)
     assert cov.ravel()[pos] >= w.sc.mission.link_threshold_db
+
+
+def test_link_recovery_retries_other_points_when_navigation_fails():
+    """Regression: a failed recovery goal must lead to a new goal, not a silent wait."""
+    w = World(build("forest_winter"))
+    core = MissionCore(w)
+    t = w.sc.terrain
+    far = t.idx((20, 30))  # well outside base coverage
+    core.on_pose(far)
+    core.margin_db = -5.0
+    core.state = "LINK_RECOVERY"
+    first = core.tick(now=100.0, goal_reached=True)
+    second = core.tick(now=130.0, goal_reached=True)
+    assert first and first[0][0] == "goto"
+    assert second and second[0][0] == "goto"
+    assert first[0][1] != second[0][1]
+    core.on_link(20.0, now=140.0)
+    assert core.state == "SEARCH" and core._recovery_tried == []
