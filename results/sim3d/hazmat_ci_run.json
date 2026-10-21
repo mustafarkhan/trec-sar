@@ -1,0 +1,49 @@
+{
+  "description": "Full 3D mission in CI (sim3d workflow): Gazebo Harmonic headless, Nav2, TREC-SAR mission nodes, ground-truth localisation. Values copied from the run's annotations.",
+  "workflow": "sim3d",
+  "run_date": "2026-10-11",
+  "scenario": "hazmat_industrial",
+  "casualty_seed": 1002,
+  "planner": "trecsar",
+  "localization": "ground_truth",
+  "frame": "world metres, x east, y north, origin at the south-west corner",
+  "start_xy": [12.5, 232.5],
+  "track_per_minute_xy": [
+    [68.55, 232.5],
+    [154.18, 254.01],
+    [246.32, 265.28],
+    [330.74, 276.54],
+    [318.36, 335.66],
+    [270.73, 281.17]
+  ],
+  "track_note": "ground-truth pose sampled once per wall-clock minute; the path between samples is not recorded",
+  "goals_xy": [
+    [328, 272],
+    [312, 268],
+    [332, 272],
+    [332, 282],
+    [332, 312],
+    [322, 338],
+    [268, 302],
+    [272, 278],
+    [312, 238]
+  ],
+  "aerial_cue_xy": [308, 268],
+  "relays_xy": [[332.5, 282.5]],
+  "casualty_xy": [332.5, 247.5],
+  "report_time_s": 408.7,
+  "relays_used": 1,
+  "link_recoveries": 1,
+  "nav_segment_failures": 1,
+  "events": [
+    "first search goal at (328, 272) m, 6 Nav2 segments",
+    "aerial cue fused into the probability map",
+    "goal at the cue; a Nav2 segment failed, re-routed",
+    "relay dropped at (332.5, 282.5) m",
+    "three more search goals to the north and west",
+    "link lost: state -> LINK_RECOVERY",
+    "link back: state -> SEARCH",
+    "person detected at (332.5, 247.5) m",
+    "casualty report received at the command post, 408.7 s, 1 relay"
+  ]
+}

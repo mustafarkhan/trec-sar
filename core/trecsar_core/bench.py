@@ -44,7 +44,8 @@ def variants():
 _WORLDS: dict = {}
 
 
-def _world(vkey):
+def variant_world(vkey: str) -> World:
+    """World for a benchmark variant key (cached), including its radio and last-known-point mismatches."""
     if vkey not in _WORLDS:
         spec = variants()[vkey][1]
         kw = {"relays": spec["relays"]} if "relays" in spec else {}
@@ -59,7 +60,7 @@ def _world(vkey):
 
 def _job(args):
     vkey, planner, seed = args
-    w = _world(vkey)
+    w = variant_world(vkey)
     r = run(w, planner, seed)
     return dict(
         variant=vkey,

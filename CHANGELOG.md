@@ -3,6 +3,26 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- CI `hygiene` job: `scripts/check_repo_hygiene.py` checks commit authorship, rejects co-author or session
+  trailers and personal-notes files; gitleaks scans the full history for secrets. The same checks run as
+  pre-commit and commit-msg hooks.
+- Videos and README GIF re-rendered: new scenes for online radio calibration (a replay in the radio-mismatch forest
+  and the 200-mission comparison) and for the Gazebo + Nav2 mission from CI (`results/sim3d/hazmat_ci_run.json`).
+  `make_videos.py --which gif` regenerates the README GIF.
+- `trecsar_core.bench.variant_world()` builds the world for any benchmark variant, including radio and
+  last-known-point mismatches.
+
+### Changed
+- Replays draw the coverage the radios really achieve and count failsafe trips in the status line.
+- TREC is described in academic and industrial terms (Government of Pakistan, NUST College of E&ME).
+
+### Fixed
+- 3D run distance in the README and v0.2.0 notes: the robot drove more than 450 m (lower bound from the
+  once-a-minute ground-truth track), not about 330 m.
+
 ## [0.2.0] — 2026-10-12
 
 ### Added

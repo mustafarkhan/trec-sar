@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import bisect
 import csv
+import json
 import subprocess
 import sys
 from collections.abc import Callable
@@ -31,6 +32,7 @@ from matplotlib.patches import FancyBboxPatch, Rectangle  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "core"))
 from trecsar_core import World, build, run  # noqa: E402
+from trecsar_core.bench import variant_world, variants  # noqa: E402
 
 # ------------------------------------------------------------------ theme ----------
 BG = "#101215"
@@ -44,12 +46,14 @@ AQUA = "#199e70"  # link-unaware greedy
 YELLOW = "#c98500"
 RED = "#e66767"
 GOOD = "#3fb97a"
-PLANNER_COLOR = {"trecsar": BLUE, "greedy_bayes": AQUA, "greedy_sf": ORANGE, "lawnmower": YELLOW}
+GOLD = "#f2c94c"  # TREC-SAR + calibration
+PLANNER_COLOR = {"trecsar": BLUE, "greedy_bayes": AQUA, "greedy_sf": ORANGE, "lawnmower": YELLOW, "trecsar_cal": GOLD}
 PLANNER_NAME = {
     "trecsar": "TREC-SAR (link-aware)",
     "greedy_bayes": "Link-unaware search",
     "greedy_sf": "Greedy + planned link loss",
     "lawnmower": "Lawnmower sweep",
+    "trecsar_cal": "TREC-SAR + radio calibration",
 }
 
 for f in font_manager.findSystemFonts():
@@ -240,6 +244,7 @@ class ReplayPanel:
         t = world.sc.terrain
         self.t = t
         self.times = [f.time_s for f in result.frames]
+        self.failsafe_t = [t_ for t_, msg in result.events if msg.startswith("link lost > failsafe")]
         self.p0 = float(result.frames[0].belief.max())
         ax.imshow(basemap(t), interpolation="nearest")
         rgba = np.zeros(t.shape + (4,))
@@ -299,7 +304,7 @@ class ReplayPanel:
     def coverage(self, n_relays):
         if n_relays not in self.cov_cache:
             nodes = [self.t.base] + [self.t.rc(c) for c in self.r.relays[:n_relays]]
-            cov = self.w.link.coverage(nodes) >= self.w.sc.mission.link_threshold_db
+            cov = self.w.link_truth.coverage(nodes) >= self.w.sc.mission.link_threshold_db  # real radio
             self.cov_cache[n_relays] = cov
         return self.cov_cache[n_relays]
 
@@ -349,7 +354,8 @@ class ReplayPanel:
         }.get(f.state, f.state)
         if reported:
             st_txt = "done"
-        self.info.set_text(f"relays {f.relays_down}  ·  {st_txt}")
+        trips = bisect.bisect_right(self.failsafe_t, sim_t)
+        self.info.set_text(f"relays {f.relays_down}  ·  failsafe trips {trips}  ·  {st_txt}")
         end = self.times[-1]
         if reported:
             self.cas.set_alpha(1.0)
@@ -369,7 +375,7 @@ class ReplayPanel:
 
 def replay_scene(scenario, seed, planners, seconds, heading, caption, name, sub=None):
     def setup(fig, fmt):
-        w = World(build(scenario))
+        w = variant_world(scenario) if scenario in variants() else World(build(scenario))
         runs = [run(w, p, seed, record=True, frame_every_s=6.0) for p in planners]
         T = max(r.frames[-1].time_s for r in runs)
         v = fmt.vertical
@@ -523,6 +529,199 @@ def results_scene(planners, seconds, name):
     return Scene(seconds, setup, name)
 
 
+# ------------------------------------------------------------------ calibration ----
+def calibration_summary(variant="forest_radio_worse", planners=("trecsar", "trecsar_cal")):
+    """Same statistics as results/summary.md (failures count as the full time limit)."""
+    with open(ROOT / "results" / "results.csv") as fh:
+        rows = [r for r in csv.DictReader(fh) if r["variant"] == variant]
+    out = {}
+    for p in planners:
+        rs = [r for r in rows if r["planner"] == p]
+        t = [float(r["time_report_s"]) if r["success"] == "1" else float(r["time_limit_s"]) for r in rs]
+        out[p] = dict(
+            n=len(rs),
+            success=np.mean([int(r["success"]) for r in rs]),
+            median_min=float(np.median(t)) / 60,
+            failsafe=np.mean([int(r["failsafe_events"]) for r in rs]),
+            relays=np.mean([int(r["relays_used"]) for r in rs]),
+        )
+    return out
+
+
+def calibration_scene(seconds, name="calibration"):
+    s = calibration_summary()
+    a, b = s["trecsar"], s["trecsar_cal"]
+    metrics = [
+        ("Median time to report", f"{a['median_min']:.0f} min", f"{b['median_min']:.0f} min"),
+        ("Failsafe trips per mission", f"{a['failsafe']:.1f}", f"{b['failsafe']:.1f}"),
+        ("Relays used per mission", f"{a['relays']:.1f}", f"{b['relays']:.1f}"),
+        ("Success", f"{a['success']:.0%}", f"{b['success']:.0%}"),
+    ]
+
+    def setup(fig, fmt):
+        v = fmt.vertical
+        fig.text(0.08, 0.93, "NEW IN 0.2  ·  ONLINE RADIO CALIBRATION", fontsize=14 * fmt.scale, color=GOLD,
+                 weight="bold", va="top")  # fmt: skip
+        head = fig.text(
+            0.08,
+            0.88,
+            "When the radio is worse than the plan assumed, the robot learns it from its own signal readings.",
+            fontsize=(24 if v else 26) * fmt.scale,
+            weight="bold",
+            va="top",
+            wrap=True,
+        )
+        wrap_px = fig.get_figwidth() * fig.dpi * 0.84
+        head._get_wrap_line_width = lambda: wrap_px
+        fig.text(
+            0.08,
+            0.75 if v else 0.74,
+            "Bayesian fit of the path-loss exponent and per-terrain attenuation, refreshed every 25 readings.",
+            fontsize=15 * fmt.scale,
+            color=INK2,
+            va="top",
+            wrap=True,
+        )
+        y0, step = (0.58, 0.095) if v else (0.58, 0.095)
+        xa, xb = (0.60, 0.80) if v else (0.55, 0.75)
+        fig.text(xa, y0 + 0.05, "TREC-SAR", fontsize=12 * fmt.scale, color=BLUE, weight="bold")
+        fig.text(xb, y0 + 0.05, "+ calibration", fontsize=12 * fmt.scale, color=GOLD, weight="bold")
+        objs = []
+        for i, (label, va_, vb_) in enumerate(metrics):
+            y = y0 - i * step
+            col = INK2 if label == "Success" else INK
+            objs.append(
+                (
+                    [
+                        fig.text(0.08, y, label, fontsize=18 * fmt.scale, color=col, va="center"),
+                        fig.text(xa, y, va_, fontsize=22 * fmt.scale, color=col, weight="bold", va="center"),
+                        fig.text(xb, y, vb_, fontsize=22 * fmt.scale, color=GOLD, weight="bold", va="center"),
+                    ],
+                    0.08 + i * 0.1,
+                )
+            )
+        fig.text(
+            0.08,
+            0.05,
+            f"Forest, radio 1.8x worse than planned (wet snow on spruce)  ·  {a['n']} held-out simulated missions "
+            "per policy  ·  time counts failures as the 90 min limit  ·  success difference is within the "
+            "95 % confidence intervals",
+            fontsize=11 * fmt.scale,
+            color=MUTED,
+            va="bottom",
+            wrap=True,
+        )
+
+        def update(u):
+            for group, st in objs:
+                for o in group:
+                    o.set_alpha(appear(u, st))
+
+        return update
+
+    return Scene(seconds, setup, name)
+
+
+# ------------------------------------------------------------------ 3D mission -----
+def sim3d_scene(seconds, name="sim3d"):
+    data = json.loads((ROOT / "results" / "sim3d" / "hazmat_ci_run.json").read_text())
+
+    def setup(fig, fmt):
+        v = fmt.vertical
+        w = World(build(data["scenario"]))
+        t = w.sc.terrain
+        fig.text(0.06, 0.95, "THE SAME PLANNER IN 3D", fontsize=14 * fmt.scale, color=BLUE, weight="bold", va="top")
+        fig.text(
+            0.06,
+            0.91,
+            "Gazebo + Nav2 mission, run headless in CI"
+            if v
+            else "Gazebo + Nav2 mission, run headless in CI on every change",
+            fontsize=(22 if v else 26) * fmt.scale,
+            weight="bold",
+            va="top",
+        )
+        ax = fig.add_axes([0.06, 0.40, 0.88, 0.45] if v else [0.04, 0.10, 0.50, 0.74])
+        ax.imshow(basemap(t), interpolation="nearest")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for sp in ax.spines.values():
+            sp.set_color(MUTED)
+
+        def rc(xy):
+            r, c = t.xy_to_cell(*xy)
+            return c, r
+
+        bx, by = rc(data["start_xy"])
+        ax.plot(bx, by, "s", ms=12 * fmt.scale, color=RED, mec=INK, mew=1.5)
+        pts = [rc(data["start_xy"])] + [rc(p) for p in data["track_per_minute_xy"]]
+        xs, ys = zip(*pts)
+        (dots,) = ax.plot([], [], "o", ms=8 * fmt.scale, color=BLUE, mec=INK, mew=1)
+        labels = [
+            ax.text(x + 1.2, y + (3.2 if i % 2 else -1.2), f"{i} min", fontsize=10 * fmt.scale, color=INK, alpha=0)
+            for i, (x, y) in enumerate(pts[1:], start=1)
+        ]
+        cx, cy = rc(data["aerial_cue_xy"])
+        cue = ax.plot(cx, cy, "D", ms=10 * fmt.scale, color=INK2, mec=BG, mew=1.2, alpha=0)[0]
+        rel = [rc(p) for p in data["relays_xy"]]
+        relays = ax.plot([p[0] for p in rel], [p[1] for p in rel], "^", ms=12 * fmt.scale, color=ORANGE,
+                         mec=BG, mew=1.5, alpha=0)[0]  # fmt: skip
+        kx, ky = rc(data["casualty_xy"])
+        cas = ax.plot(kx, ky, "X", ms=14 * fmt.scale, color=RED, mec=INK, mew=1.2, alpha=0)[0]
+        box = ax.get_position()
+        fig.text(
+            box.x0,
+            box.y0 - 0.012,
+            "● true position each minute (path between not logged)  ·  ◆ drone cue  ·  ▲ relay  ·  ■ post  ·  × person",
+            fontsize=10 * fmt.scale,
+            color=INK2,
+            va="top",
+            wrap=True,
+        )
+        ev = data["events"]
+        ex, ey0, estep = (0.06, 0.325, 0.029) if v else (0.58, 0.82, 0.062)
+        ev_txt = [
+            fig.text(
+                ex,
+                ey0 - i * estep,
+                "•  " + e,
+                fontsize=(12.5 if v else 13.5) * fmt.scale,
+                color=INK2,
+                va="top",
+                alpha=0,
+            )  # fmt: skip
+            for i, e in enumerate(ev)
+        ]
+        ev_txt[-1].set_color(GOOD)
+        ev_txt[-1].set_weight("bold")
+        fig.text(
+            0.06 if v else 0.58,
+            0.03,
+            f"Industrial chemical release  ·  {data['report_time_s']:.0f} s simulated mission time  ·  "
+            "localisation from ground truth (SLAM drifted in this feature-poor yard)",
+            fontsize=11 * fmt.scale,
+            color=MUTED,
+            va="bottom",
+            wrap=True,
+        )
+
+        def update(u):
+            g = min(u / 0.8, 1.0)
+            k = 1 + int(round(g * (len(pts) - 1)))
+            dots.set_data(xs[1:k], ys[1:k])
+            for i, lab in enumerate(labels, start=1):
+                lab.set_alpha(1.0 if i < k else 0.0)
+            cue.set_alpha(appear(u, 0.15))
+            relays.set_alpha(appear(u, 0.35))
+            cas.set_alpha(appear(u, 0.78))
+            for i, o in enumerate(ev_txt):
+                o.set_alpha(appear(u, 0.05 + i * 0.085))
+
+        return update
+
+    return Scene(seconds, setup, name)
+
+
 # ------------------------------------------------------------------ diagram --------
 def how_scene(seconds=12.0):
     def setup(fig, fmt):
@@ -654,6 +853,18 @@ def render(scenes, fmt, out: Path, stills_dir: Path | None = None):
     print(f"wrote {out}  ({total / fmt.fps:.0f} s, {out.stat().st_size / 1e6:.1f} MB)")
 
 
+def readme_gif(out: Path, fps: int = 12, seconds: float = 11.0):
+    """README GIF: the winter-forest replay (link-unaware vs TREC-SAR) at 960x540."""
+    scene = [sc for sc in github_scenes() if sc.name == "replay_forest"][0]
+    scene = Scene(seconds, scene.setup, scene.name)
+    tmp = out.with_suffix(".tmp.mp4")
+    render([scene], Fmt(960, 540, fps, False, 0.625), tmp)
+    graph = "split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=4"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(tmp), "-lavfi", graph, str(out)], check=True)
+    tmp.unlink()
+    print(f"wrote {out}  ({out.stat().st_size / 1e6:.1f} MB)")
+
+
 def preview(scenes, fmt, out_dir: Path, tag: str, u: float = 0.9):
     """Render one still per scene (fast layout check)."""
     for sc in scenes:
@@ -704,6 +915,8 @@ def linkedin_scenes():
             sub="Winter night, boreal forest  ·  simulation",
         ),
         results_scene(["greedy_bayes", "trecsar"], 8.0, "results"),
+        calibration_scene(7.5),
+        sim3d_scene(8.0),
         text_scene(
             [
                 ("Open source", 34, INK, "bold", 0.66, 0.0),
@@ -826,6 +1039,19 @@ def github_scenes():
             11.0,
             "ablation",
         ),
+        replay_scene(
+            "forest_radio_worse",
+            1089,
+            ["trecsar", "trecsar_cal"],
+            20.0,
+            "New in 0.2 · the radio is 1.8x worse than planned",
+            "Same mission and luck. Left keeps the radio model it started with and keeps hitting the failsafe; "
+            "right refits it from signal readings. Dashed = coverage the radios really achieve.",
+            "replay_calibration",
+            sub="Winter forest, wet snow on spruce  ·  a typical seed (near the medians below)",
+        ),
+        calibration_scene(9.0),
+        sim3d_scene(12.0),
         text_scene(
             [
                 ("Limits, stated plainly", 30, INK, "bold", 0.82, 0.0),
@@ -846,7 +1072,7 @@ def github_scenes():
                     0.22,
                 ),
                 (
-                    "•  The ROS 2 / Gazebo stack is written and checked, not yet field-tested on hardware.",
+                    "•  The ROS 2 / Gazebo / Nav2 mission passes in CI, with ground-truth localisation. No hardware tests yet.",
                     19,
                     INK2,
                     "normal",
@@ -895,7 +1121,7 @@ def github_scenes():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--which", choices=["linkedin", "github", "both"], default="both")
+    ap.add_argument("--which", choices=["linkedin", "github", "both", "gif"], default="both")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--stills", action="store_true")
     ap.add_argument("--preview", action="store_true", help="only render one still per scene")
@@ -912,6 +1138,9 @@ def main():
             preview(linkedin_scenes(), Fmt(1080, 1350, a.fps, True, 1.15), d, "linkedin")
         if a.which in ("github", "both"):
             preview(github_scenes(), Fmt(1920, 1080, a.fps, False, 1.25), d, "github")
+        return
+    if a.which == "gif":
+        readme_gif(a.out / "trec-sar_replay.gif")
         return
     if a.which in ("linkedin", "both"):
         render(linkedin_scenes(), Fmt(1080, 1350, a.fps, True, 1.15), a.out / "trec-sar_linkedin.mp4", stills)

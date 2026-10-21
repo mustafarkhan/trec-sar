@@ -194,8 +194,9 @@ ros2 topic echo --once /trecsar/report          # casualty report JSON
 
 **3D mission (Gazebo Harmonic + Nav2)** — tested in CI ([`sim3d.yml`](.github/workflows/sim3d.yml)): the
 TREC-sized robot drives the industrial site in Gazebo, Nav2 follows the mission planner's route, and the run passes
-only if the casualty report reaches the command post. Latest run: about 330 m driven, drone cue fused, one relay
-deployed, one link-loss recovery, **casualty reported at 410 s with 1 relay**. CI uses ground-truth localisation;
+only if the casualty report reaches the command post. Latest run: more than 450 m driven (lower bound from the
+once-a-minute ground-truth track), drone cue fused, one relay deployed, one link-loss recovery, **casualty reported
+at 409 s with 1 relay** ([run data](results/sim3d/hazmat_ci_run.json)). CI uses ground-truth localisation;
 `localization:=slam` runs slam_toolbox instead. Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image; see
 [`docs/RUNNING.md`](docs/RUNNING.md):
 
@@ -207,11 +208,12 @@ ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter planner:=t
 
 | | |
 |---|---|
-| Tests | 56 unit, behaviour, calibration, world and CLI tests on Python 3.10–3.13, with coverage |
+| Tests | 61 unit, behaviour, calibration, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
 | ROS 2 | All four packages built in CI on ROS 2 Jazzy; end-to-end headless mission must deliver a casualty report |
 | 3D | Gazebo Harmonic + Nav2 mission in CI must find the casualty and deliver the report |
 | Perception | Thermal person detector trained and evaluated in CI on HIT-UAV (held-out test mAP@0.5 0.90) |
 | Reproducibility | Fixed seeds; tuning seeds (100–159) separate from evaluation seeds (1000–1199); Gazebo worlds regenerated and diffed in CI |
+| Repository hygiene | CI checks commit authorship and messages, keeps personal notes out, and runs gitleaks over the full history |
 | Code style | `ruff` lint + format, pre-commit hooks |
 | Failure analysis | FMEA-style table of failure modes and limitations in [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md) |
 
