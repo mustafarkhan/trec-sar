@@ -10,3 +10,8 @@ runs/
 datasets/
 *.pt
 *.onnx
+
+# personal working notes stay local (enforced by scripts/check_repo_hygiene.py)
+private/
+notes/
+*.private.*

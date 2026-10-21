@@ -17,7 +17,7 @@ operated robots in bad conditions — field experience is as welcome as code.
 git clone https://github.com/mustafarkhan/trec-sar.git && cd trec-sar
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e "core[dev]"
-pre-commit install          # runs ruff on every commit
+pre-commit install          # ruff, secret scan and commit-message checks on every commit
 pytest -q core/tests
 ```
 
@@ -31,6 +31,9 @@ pytest -q core/tests
    (see `docs/RESEARCH.md`).
 4. **Civilian scope.** This project is for search and rescue. Weapon or targeting features will not be accepted.
 5. `ruff check .` and `ruff format .` must pass.
+6. **Plain commits.** No co-author or session trailers, no links to chat sessions, and no personal working notes
+   (`private/`, `notes/`, `*.private.*` are ignored and rejected). CI checks this with
+   `scripts/check_repo_hygiene.py` and scans the full history for secrets with gitleaks.
 
 ## Commit and PR style
 

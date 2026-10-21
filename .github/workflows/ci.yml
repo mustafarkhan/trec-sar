@@ -5,6 +5,32 @@ on:
   pull_request:
 
 jobs:
+  hygiene:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}  # the branch's own commits, not the merge
+      - name: Commit authorship and trailers
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          OWN_BRANCH: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            RANGE=HEAD            # new branch or rewritten history: check everything
+          else
+            RANGE="$BASE..HEAD"
+          fi
+          AUTHORS=""; [ "$OWN_BRANCH" = "true" ] && AUTHORS="--check-authors"
+          python3 scripts/check_repo_hygiene.py --commits "$RANGE" $AUTHORS --files
+      - name: Secret scan (full history)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar xz gitleaks
+          ./gitleaks git --redact --no-banner .
+
   lint:
     runs-on: ubuntu-24.04
     steps:

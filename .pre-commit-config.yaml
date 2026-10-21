@@ -1,3 +1,4 @@
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
@@ -13,3 +14,20 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: [--maxkb=8000]
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: hygiene-files
+        name: no personal notes in the repo
+        entry: python3 scripts/check_repo_hygiene.py --files
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: hygiene-message
+        name: plain commit message (no co-author or session trailers)
+        entry: python3 scripts/check_repo_hygiene.py --message-file
+        language: system
+        stages: [commit-msg]
