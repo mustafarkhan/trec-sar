@@ -195,9 +195,9 @@ ros2 topic echo --once /trecsar/report          # casualty report JSON
 
 **3D mission (Gazebo Harmonic + Nav2)** — tested in CI ([`sim3d.yml`](.github/workflows/sim3d.yml)): the
 TREC-sized robot drives the industrial site in Gazebo, Nav2 follows the mission planner's route, and the run passes
-only if the casualty report reaches the command post. Latest run: more than 450 m driven (lower bound from the
+only if the casualty report reaches the command post. Recorded run (11 Oct 2026): more than 450 m driven (lower bound from the
 once-a-minute ground-truth track), drone cue fused, one relay deployed, one link-loss recovery, **casualty reported
-at 409 s with 1 relay** ([run data](results/sim3d/hazmat_ci_run.json)). CI uses ground-truth localisation;
+at 409 s with 1 relay** ([run data](results/sim3d/hazmat_ci_run.json)); later runs report at 370–410 s. CI uses ground-truth localisation;
 `localization:=slam` runs slam_toolbox instead. Ubuntu 24.04 + ROS 2 Jazzy, or the Docker image; see
 [`docs/RUNNING.md`](docs/RUNNING.md):
 
