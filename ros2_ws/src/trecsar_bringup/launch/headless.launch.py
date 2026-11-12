@@ -25,6 +25,7 @@ def _setup(context):
     sx, sy = SPAWN[scenario]
     mission_cfg = os.path.join(get_package_share_directory("trecsar_mission"), "config", "mission.yaml")
     common = {"scenario": scenario, "spawn_x": sx, "spawn_y": sy, "use_sim_time": False}
+    radio = {"report_radio": LaunchConfiguration("report_radio").perform(context)}
     seeded = dict(common, casualty_seed=seed)
     return [
         Node(
@@ -33,14 +34,14 @@ def _setup(context):
             output="screen",
             parameters=[dict(common, speed_mps=speed)],
         ),
-        Node(package="trecsar_mission", executable="link_sim", parameters=[mission_cfg, common]),
+        Node(package="trecsar_mission", executable="link_sim", parameters=[mission_cfg, dict(common, **radio)]),
         Node(package="trecsar_mission", executable="sim_detector", output="screen", parameters=[mission_cfg, seeded]),
         Node(package="trecsar_mission", executable="aerial_spotter", parameters=[mission_cfg, seeded]),
         Node(
             package="trecsar_mission",
             executable="mission_manager",
             output="screen",
-            parameters=[mission_cfg, dict(common, planner=planner)],
+            parameters=[mission_cfg, dict(common, planner=planner, **radio)],
         ),
     ]
 
@@ -52,6 +53,9 @@ def generate_launch_description():
             DeclareLaunchArgument("seed", default_value="5"),
             DeclareLaunchArgument("planner", default_value="trecsar"),
             DeclareLaunchArgument("speed", default_value="8.0", description="robot speed in m/s (2.22 = real TREC)"),
+            DeclareLaunchArgument(
+                "report_radio", default_value="", description="narrowband report link, e.g. eu868_500mw (868 MHz)"
+            ),
             OpaqueFunction(function=_setup),
         ]
     )

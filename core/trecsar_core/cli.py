@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .link import PROFILES
 from .planner import PLANNERS
 from .scenarios import SCENARIOS, build
 from .sim import World, run
@@ -24,7 +25,10 @@ from .sim import World, run
 def _world(a) -> World:
     key = a.site or a.scenario
     kw = {"relays": a.relays} if a.relays is not None else {}
-    return World(build(key, **kw))
+    sc = build(key, **kw)
+    if a.report_radio:
+        sc.mission.report_radio = a.report_radio
+    return World(sc)
 
 
 def _summary(r) -> dict:
@@ -39,6 +43,7 @@ def _summary(r) -> dict:
         "relays_used": r.relays_used,
         "distance_m": round(r.distance_m),
         "failsafe_events": r.failsafe_events,
+        "report_channel": r.report_channel,
         "end_state": r.end_state,
     }
 
@@ -46,8 +51,10 @@ def _summary(r) -> dict:
 def _print_run(r, events: bool):
     s = _summary(r)
     verdict = f"REPORTED at {s['time_report_min']} min" if r.success else f"NOT REPORTED ({r.end_state})"
+    if r.report_channel == "narrowband":
+        verdict += " (868 MHz)"
     print(
-        f"{s['planner']:>13}  {verdict:<26} relays {s['relays_used']}  "
+        f"{s['planner']:>13}  {verdict:<34} relays {s['relays_used']}  "
         f"out-of-link {s['out_of_link_min']} min  distance {s['distance_m']} m  failsafe {s['failsafe_events']}"
     )
     if events:
@@ -119,6 +126,11 @@ def main(argv=None) -> int:
         p.add_argument("--site", help="custom site YAML (overrides --scenario)")
         p.add_argument("--seed", type=int, default=1002)
         p.add_argument("--relays", type=int, help="override the number of relay nodes")
+        p.add_argument(
+            "--report-radio",
+            choices=sorted(PROFILES),
+            help="add a narrowband 868 MHz telemetry/report link (European short-range-device limits)",
+        )
         p.add_argument("--plot", help="write a PNG map of the mission(s)")
         p.add_argument("--json", action="store_true", help="machine-readable output")
 

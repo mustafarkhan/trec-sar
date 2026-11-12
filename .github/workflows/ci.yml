@@ -112,3 +112,22 @@ jobs:
           kill $LAUNCH || true
           echo "== mission log (tail) =="; tail -n 60 /tmp/mission.log
           exit $STATUS
+      - name: End-to-end mission with the 868 MHz report link
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source ros2_ws/install/setup.bash
+          pkill -f trecsar_mission || true; sleep 2
+          ros2 launch trecsar_bringup headless.launch.py scenario:=hazmat_industrial seed:=5 speed:=8.0 \
+            report_radio:=eu868_500mw > /tmp/mission2.log 2>&1 &
+          LAUNCH=$!
+          timeout 60 ros2 topic echo --once /link/report_margin_db std_msgs/msg/Float32
+          if timeout 300 ros2 topic echo --once /trecsar/report std_msgs/msg/String > /tmp/report2.txt; then
+            echo "== casualty report received =="; cat /tmp/report2.txt; STATUS=0
+          else
+            echo "== no report within 300 s =="; STATUS=1
+          fi
+          kill $LAUNCH || true
+          tail -n 40 /tmp/mission2.log
+          grep -q channel /tmp/report2.txt || STATUS=1
+          exit $STATUS

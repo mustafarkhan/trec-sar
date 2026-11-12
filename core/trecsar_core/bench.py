@@ -43,6 +43,19 @@ def variants():
         ),
         "tunnel": ("Tunnel after rock fall", dict(key="tunnel")),
         "hazmat_industrial": ("Industrial chemical release", dict(key="hazmat_industrial")),
+        # European two-link radio: 2.4 GHz video plus a duty-cycle-limited 868 MHz telemetry/report link
+        "forest_eu868_500mw": (
+            "Forest + 868 MHz report link (500 mW, 10 % duty cycle)",
+            dict(key="forest_winter", report="eu868_500mw"),
+        ),
+        "forest_eu868_25mw": (
+            "Forest + 868 MHz report link (25 mW, 1 % duty cycle)",
+            dict(key="forest_winter", report="eu868_25mw"),
+        ),
+        "tunnel_eu868_500mw": (
+            "Tunnel + 868 MHz report link (500 mW, 10 % duty cycle)",
+            dict(key="tunnel", report="eu868_500mw"),
+        ),
     }
 
 
@@ -62,6 +75,8 @@ def variant_world(vkey: str, terrain: int = REFERENCE_TERRAIN) -> World:
             sc.truth_lkp_offset = spec["offset"]
         if "radio" in spec:
             sc.radio_truth = spec["radio"]
+        if "report" in spec:
+            sc.mission.report_radio = spec["report"]
         _WORLDS[(vkey, terrain)] = World(sc)
     return _WORLDS[(vkey, terrain)]
 
@@ -83,6 +98,9 @@ def _job(args):
         distance_m=round(r.distance_m, 1),
         failsafe_events=r.failsafe_events,
         end_state=r.end_state,
+        report_channel=r.report_channel,
+        time_alert_s=r.time_alert_s,
+        unsupervised_s=round(r.unsupervised_s, 1),
         time_limit_s=w.sc.mission.time_limit_s,
     )
 
@@ -109,6 +127,7 @@ def summarise(rows):
             lo, hi = wilson(k, n)
             tl = rs[0]["time_limit_s"]
             t = np.array([r["time_report_s"] if r["success"] else tl for r in rs], float)
+            ta = np.array([r["time_alert_s"] if r["time_alert_s"] is not None else tl for r in rs], float)
             per_terrain = [
                 np.mean([r["success"] for r in rs if r["terrain"] == k]) for k in sorted({r["terrain"] for r in rs})
             ]
@@ -125,10 +144,14 @@ def summarise(rows):
                     terrain_lo=float(min(per_terrain)),
                     terrain_hi=float(max(per_terrain)),
                     median_min=float(np.median(t)) / 60,
+                    alert_median_min=float(np.median(ta)) / 60,
                     mean_min=float(t.mean()) / 60,
                     out_of_link_s=float(np.mean([r["out_of_link_s"] for r in rs])),
                     failsafe=float(np.mean([r["failsafe_events"] for r in rs])),
                     relays=float(np.mean([r["relays_used"] for r in rs])),
+                    two_link="report" in variants()[vkey][1],
+                    narrowband=float(np.mean([r["report_channel"] == "narrowband" for r in rs])),
+                    unsupervised_s=float(np.mean([r["unsupervised_s"] for r in rs])),
                     limit_min=tl / 60,
                 )
             )
@@ -153,7 +176,8 @@ def write_summary(summary, path, n, seconds, terrains=(REFERENCE_TERRAIN,)):
         )
         + f"Runtime {seconds:.0f} s.",
         "",
-        "*Success* = a human at the command post received the detection before the time limit. "
+        "*Success* = a human at the command post received the detection before the time limit (with an image "
+        "they can confirm: live video, or a thumbnail sent over the narrowband link). "
         "*Time* counts failures as the full time limit (so medians are conservative). 95 % Wilson "
         "intervals in brackets"
         + (
@@ -168,20 +192,30 @@ def write_summary(summary, path, n, seconds, terrains=(REFERENCE_TERRAIN,)):
         rows = [s for s in summary if s["variant"] == vkey]
         if not rows:
             continue
+        two = rows[0]["two_link"]
         lines += [
             f"## {vtitle}",
             "",
             "| Policy | Success |"
             + (" Per-terrain range |" if multi else "")
-            + " Median time | Mean time | Time out of link | Failsafe trips | Relays used |",
-            "|---|---|---|---|---|---|---|" + ("---|" if multi else ""),
+            + (" Median time to position alert |" if two else "")
+            + " Median time | Mean time | "
+            + (
+                "Time without live video | Time unsupervised | Reports sent over 868 MHz |"
+                if two
+                else "Time out of link |"
+            )
+            + " Failsafe trips | Relays used |",
+            "|---|---|---|---|---|---|---|" + ("---|" if multi else "") + ("---|---|---|" if two else ""),
         ]
         for s in rows:
             lines.append(
                 f"| {LABELS[s['planner']]} | {s['success']:.0%} [{s['ci_lo']:.0%}–{s['ci_hi']:.0%}] | "
                 + (f"{s['terrain_lo']:.0%}–{s['terrain_hi']:.0%} | " if multi else "")
+                + (f"{s['alert_median_min']:.1f} min | " if two else "")
                 + f"{s['median_min']:.1f} min | {s['mean_min']:.1f} min | {s['out_of_link_s']:.0f} s | "
-                f"{s['failsafe']:.1f} | {s['relays']:.1f} |"
+                + (f"{s['unsupervised_s']:.0f} s | {s['narrowband']:.0%} | " if two else "")
+                + f"{s['failsafe']:.1f} | {s['relays']:.1f} |"
             )
         lines.append("")
     path.write_text("\n".join(lines))

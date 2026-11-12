@@ -47,6 +47,12 @@ class MissionConfig:
     aerial_cue_sigma_m: float = 40.0
     aerial_false_cue_rate: float = 0.15
     radio: dict = field(default_factory=dict)  # overrides for LinkModel
+    # Optional second, narrowband link that carries telemetry and the casualty report
+    # (a key of trecsar_core.link.PROFILES, e.g. "eu868_500mw"). None = video link only.
+    report_radio: str | None = None
+    report_payload_bytes: int = 4000  # position + a thermal thumbnail the operator can confirm
+    alert_payload_bytes: int = 60  # position-only alert sent first (unconfirmed)
+    report_rf_scale: float | None = None  # site override of the profile's obstruction scaling
 
 
 @dataclass
@@ -207,6 +213,9 @@ def tunnel(seed: int = 0, relays: int = 4) -> Scenario:
             detect_r0_m=14.0,
             aerial_cue_time_s=None,
             failsafe_s=30.0,
+            # Tunnels guide radio like a lossy waveguide whose loss grows with wavelength squared
+            # (Emslie et al. 1975): 868 MHz loses (2440/868)^2 = 7.9x more per metre than 2.4 GHz.
+            report_rf_scale=7.9,
         ),
         narrative=(
             "A maintenance worker's last radio check-in came from the north-east work face "

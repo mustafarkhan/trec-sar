@@ -18,13 +18,17 @@ except ImportError:  # fall back to the source checkout layout: <repo>/ros2_ws/s
 
 from trecsar_core import World, build  # noqa: E402
 
-_WORLDS: dict[str, World] = {}
+_WORLDS: dict[tuple[str, str], World] = {}
 
 
-def get_world(scenario: str) -> World:
-    if scenario not in _WORLDS:
-        _WORLDS[scenario] = World(build(scenario))
-    return _WORLDS[scenario]
+def get_world(scenario: str, report_radio: str = "") -> World:
+    """Scenario world; `report_radio` adds a narrowband telemetry/report link (a trecsar_core.link.PROFILES key)."""
+    if (scenario, report_radio) not in _WORLDS:
+        sc = build(scenario)
+        if report_radio:
+            sc.mission.report_radio = report_radio
+        _WORLDS[(scenario, report_radio)] = World(sc)
+    return _WORLDS[(scenario, report_radio)]
 
 
 def grid_msg(node, values: np.ndarray, terrain, frame: str, origin_xy: tuple[float, float]):

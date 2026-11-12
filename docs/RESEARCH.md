@@ -52,8 +52,10 @@ are in `results/reference_terrain/`.
 
 ## Assumptions that would change the answer
 
-- Radio: 2.4 GHz-like budget (20 dBm, 4 dB gain, −90 dBm sensitivity). Sub-GHz mesh radios reach much further in
-  forest, which would shrink the advantage of link-aware planning.
+- Radio: 2.4 GHz budget at the European limit (20 dBm e.i.r.p., 4 dBi receive gain, −90 dBm sensitivity). A
+  sub-GHz link reaches much further in forest. This is now tested rather than assumed: with a legal 868 MHz
+  telemetry and report link every policy is supervised over most of the forest and needs few relays, while the
+  tunnel result is unchanged. See `docs/EU_RADIO.md`.
 - Failsafe policy for baselines: 30–45 s, then return to coverage. A more permissive failsafe narrows the gap
   between baselines and the planned-link-loss policies.
 - Perfect localisation and a known map in the 2D simulator.

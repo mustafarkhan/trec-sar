@@ -3,6 +3,7 @@
 Inputs
   /trecsar/ground_truth_pose  geometry_msgs/PoseStamped  robot pose, world frame (sim shortcut)
   /link/margin_db            std_msgs/Float32           radio link margin to the network
+  /link/report_margin_db     std_msgs/Float32           narrowband report link margin (only with report_radio)
   /trecsar/detection          geometry_msgs/PointStamped person detected (world frame)
   /aerial/cue                geometry_msgs/PointStamped drone "possible person here"
 Outputs
@@ -40,8 +41,10 @@ class MissionManager(Node):
         self.declare_parameter("spawn_y", 15.0)
         self.declare_parameter("tick_hz", 1.0)
         self.declare_parameter("segment_m", 60.0)  # route handed to Nav2 in segments of this length
+        self.declare_parameter("report_radio", "")  # e.g. eu868_500mw
         scenario = self.get_parameter("scenario").value
-        self.world = get_world(scenario)
+        self.world = get_world(scenario, self.get_parameter("report_radio").value)
+        self.report_margin = None
         self.t = self.world.sc.terrain
         self.core = MissionCore(self.world, self.get_parameter("planner").value)
         self.spawn = (self.get_parameter("spawn_x").value, self.get_parameter("spawn_y").value)
@@ -70,6 +73,7 @@ class MissionManager(Node):
 
         self.create_subscription(PoseStamped, "/trecsar/ground_truth_pose", self.on_pose, 10)
         self.create_subscription(Float32, "/link/margin_db", self.on_link, 10)
+        self.create_subscription(Float32, "/link/report_margin_db", self.on_report_link, 10)
         self.create_subscription(PointStamped, "/trecsar/detection", self.on_detection, 10)
         self.create_subscription(PointStamped, "/aerial/cue", self.on_cue, 10)
         self.create_timer(1.0 / self.get_parameter("tick_hz").value, self.tick)
@@ -102,10 +106,14 @@ class MissionManager(Node):
                     "y_m": round(y, 1),
                     "time_s": round(self.now(), 1),
                     "relays_used": self.world.sc.mission.relays - self.core.relays_left,
+                    "channel": self.core.report_channel,
                 }
                 self.pub_report.publish(String(data=json.dumps(rep)))
                 self.cancel_goal()
                 self.get_logger().warn(f"CASUALTY REPORTED: {rep}")
+            elif cmd == "hold":
+                self.cancel_goal()
+                self.get_logger().info("holding position: report going out over the narrowband link")
             elif cmd == "state":
                 self.pub_state.publish(String(data=arg))
                 self.get_logger().info(f"state -> {arg}")
@@ -232,11 +240,14 @@ class MissionManager(Node):
         return False
 
     def on_link(self, msg: Float32):
-        self.execute(self.core.on_link(float(msg.data), self.now()))
+        self.execute(self.core.on_link(float(msg.data), self.now(), self.report_margin))
+
+    def on_report_link(self, msg: Float32):
+        self.report_margin = float(msg.data)
 
     def on_detection(self, msg: PointStamped):
         cell = self.t.idx(self.t.xy_to_cell(msg.point.x, msg.point.y))
-        self.execute(self.core.on_detection(cell))
+        self.execute(self.core.on_detection(cell, self.now()))
 
     def on_cue(self, msg: PointStamped):
         self.core.on_aerial_cue(self.t.xy_to_cell(msg.point.x, msg.point.y))

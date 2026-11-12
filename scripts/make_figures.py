@@ -67,8 +67,11 @@ def load():
         return list(csv.DictReader(f))
 
 
+CORE = ["forest_winter", "forest_1relay", "forest_wrong_lkp", "forest_radio_worse", "tunnel", "hazmat_industrial"]
+
+
 def success_and_relays(rows):
-    vs = variants()
+    vs = {k: v for k, v in variants().items() if k in CORE}
     fig, axes = plt.subplots(2, len(vs), figsize=(20, 6.8), sharey="row")
     order = list(reversed(PLANNERS))  # TREC-SAR on top
     for j, (vkey, (vtitle, _)) in enumerate(vs.items()):

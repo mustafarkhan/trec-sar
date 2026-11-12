@@ -133,6 +133,27 @@ intervals overlap), with fewer than half the relays the ablation uses. The ablat
 median: it buys that with relays. The same logic runs on the live robot: `MissionCore` calibrates from
 `/link/margin_db` with `planner:=trecsar_cal`.
 
+### European radio rules: video link plus an 868 MHz report link (new in 0.3)
+
+The radio model radiates what European rules allow: 100 mW e.i.r.p. at 2.4 GHz (ETSI EN 300 328). 0.3 adds an
+optional second link in the 868 MHz short-range-device band with its legal power and **duty cycle** (CEPT ERC
+Recommendation 70-03, ETSI EN 300 220): `--report-radio eu868_500mw` (500 mW, 10 %) or `eu868_25mw` (25 mW, 1 %).
+Telemetry on that link keeps the robot supervised beyond video range, and the casualty report can go out as a
+position alert followed by a thermal thumbnail — 59 s of airtime at 10 % duty cycle, almost 10 min at 1 %, in
+which case the robot drives back to video coverage instead.
+
+| Forest, winter, 3 relays (200 held-out missions) | Success | Median time to report | Relays used | Failsafe trips | Time without live video |
+|---|---|---|---|---|---|
+| Greedy + reactive relays, video link only | 74 % | 30.9 min | 2.4 | 0.7 | 1.3 min |
+| TREC-SAR, video link only | 74 % | 30.4 min | 1.2 | 0.6 | 6.4 min |
+| Greedy + reactive relays, with 868 MHz 500 mW | 73 % | 32.0 min | 0.7 | 0.0 | 17.4 min |
+| TREC-SAR, with 868 MHz 500 mW | 71 % | 31.8 min | 0.2 | 0.5 | 17.6 min |
+
+Above ground the sub-GHz link removes the supervision problem for every policy and most relays stay in the bay,
+but nobody is found sooner and the operator is without live video for about 17 min per mission. Underground it
+changes nothing: rock blocks both bands, and planned relays remain necessary (TREC-SAR 91 % with 0.8 relays
+against 86–88 % with 2.6). Limits, assumptions and sources: [`docs/EU_RADIO.md`](docs/EU_RADIO.md).
+
 ### Thermal person detector (measured)
 
 A YOLO11n detector fine-tuned on the open **HIT-UAV** drone thermal dataset (Suo et al., *Scientific Data* 2023),
@@ -224,7 +245,7 @@ ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter planner:=t
 
 | | |
 |---|---|
-| Tests | 66 unit, behaviour, calibration, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
+| Tests | 77 unit, behaviour, calibration, radio-profile, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
 | ROS 2 | All four packages built in CI on ROS 2 Jazzy; end-to-end headless mission must deliver a casualty report |
 | 3D | Gazebo Harmonic + Nav2 mission in CI must find the casualty and deliver the report |
 | Perception | Thermal person detector trained and evaluated in CI on HIT-UAV (held-out test mAP@0.5 0.90) |
@@ -248,7 +269,7 @@ ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimens
                                       headless fake robot
                  trecsar_bringup      launch files: 3D (SLAM + Nav2 + RViz) and headless
 perception/      HIT-UAV thermal person detector: CI training script, Colab notebook, trained weights
-docs/            concept, scenarios (CONOPS), research basis, failure modes, running guide
+docs/            concept, scenarios (CONOPS), research basis, European radio rules, failure modes, running guide
 docker/          ROS 2 Jazzy + Gazebo container
 ```
 

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **European radio profiles and a two-link mission** (`docs/EU_RADIO.md`). `trecsar_core.link.PROFILES` holds 868 MHz
+  LoRa links at the limits of ERC Recommendation 70-03 / ETSI EN 300 220 (500 mW at 10 % duty cycle, 25 mW at
+  1 %). With `--report-radio` (CLI) or `report_radio:=` (ROS 2 headless launch) the robot is supervised where video
+  or narrowband telemetry works, sends a position alert first, and delivers the confirmed report over the
+  narrowband link when its duty-cycle-limited airtime is shorter than the drive back to video coverage.
+- Three two-link benchmark variants; results record the report channel, time to the position alert, and time
+  without any supervision. `MissionCore` and the link simulator support the second link
+  (`/link/report_margin_db`).
 - CI `hygiene` job: `scripts/check_repo_hygiene.py` checks commit authorship, rejects co-author or session
   trailers and personal-notes files; gitleaks scans the full history for secrets. The same checks run as
   pre-commit and commit-msg hooks.

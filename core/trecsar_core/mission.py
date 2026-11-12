@@ -9,6 +9,7 @@ Outputs are *commands* the wrapper executes:
     ("goto", cell)         send a navigation goal (flat index)
     ("drop_relay", cell)   deploy a relay node here
     ("report", cell)       push the detection + snapshot to the command post
+    ("hold", None)         stop and stay: the report is going out over the narrowband link
     ("state", name)        state changed (for logging / UI)
 """
 
@@ -43,6 +44,9 @@ class MissionCore:
     calibrate_radio: bool = False  # learn the radio model from /link/margin_db readings
     _last_obs_pos: int = -1
     _obs_since_fit: int = 0
+    report_margin_db: float | None = None  # narrowband telemetry/report link, if the site has one
+    report_channel: str = ""  # "video" or "narrowband" once the report is out
+    _tx_done_at: float | None = None
 
     def __post_init__(self):
         t = self.world.sc.terrain
@@ -55,10 +59,42 @@ class MissionCore:
         self.calibrator = (
             RadioCalibrator(self.world.link) if (self.calibrate_radio or self.planner_name == "trecsar_cal") else None
         )
-        self.coverage = self.world.link.coverage(self.nodes)
+        self.nb = self.world.link_report
+        self._refresh_coverage()
 
     def _refresh_coverage(self) -> None:
-        self.coverage = self.planner.link.coverage(self.nodes)
+        """Predicted supervision: live video or, with a narrowband link, telemetry (see sim.supervision)."""
+        cov = self.planner.link.coverage(self.nodes)
+        if self.nb is not None:
+            cov = np.maximum(cov, self.nb.coverage(self.nodes) - self.nb.threshold + self.m.link_threshold_db)
+        self.coverage = cov
+
+    @property
+    def video_ok(self) -> bool:
+        return self.margin_db >= self.m.link_threshold_db
+
+    @property
+    def narrowband_ok(self) -> bool:
+        return self.nb is not None and self.report_margin_db is not None and self.report_margin_db >= self.nb.threshold
+
+    @property
+    def supervised(self) -> bool:
+        return self.video_ok or self.narrowband_ok
+
+    def _report(self, channel: str) -> list:
+        self.report_channel = channel
+        return [("report", self._detected_at)] + self._set("DONE")
+
+    def _send_or_wait(self, now: float) -> list:
+        """REPORT state with a link up: video delivers at once; narrowband needs duty-cycle-limited airtime."""
+        if self.video_ok:
+            return self._report("video")
+        if self._tx_done_at is None:
+            self._tx_done_at = now + self.world.report_profile.airtime_s(self.m.report_payload_bytes)
+            return [("hold", None)]
+        if now >= self._tx_done_at:
+            return self._report("narrowband")
+        return []
 
     def _observe_link(self, margin_db: float) -> None:
         """One signal-strength reading per visited cell; refit the radio model every 25 cells."""
@@ -81,11 +117,14 @@ class MissionCore:
             if self.state in ("SEARCH", "LINK_RECOVERY"):
                 self.belief.update_negative_sparse(idx, pod)
 
-    def on_link(self, margin_db: float, now: float) -> list:
+    def on_link(self, margin_db: float, now: float, report_margin_db: float | None = None) -> list:
         self.margin_db = margin_db
+        self.report_margin_db = report_margin_db
         self._observe_link(margin_db)
         cmds = []
-        if margin_db >= self.m.link_threshold_db:
+        if not self.narrowband_ok:
+            self._tx_done_at = None  # an interrupted narrowband transfer starts again
+        if self.supervised:
             self._out_since = None
             self._authorized_out = 0.0
             self._recovery_tried = []
@@ -93,7 +132,7 @@ class MissionCore:
                 cmds += self._set("SEARCH")
                 self._plan_goal = None
             if self.state == "REPORT":
-                cmds += [("report", self._detected_at)] + self._set("DONE")
+                cmds += self._send_or_wait(now)
         else:
             self._out_since = now if self._out_since is None else self._out_since
             if self.state == "SEARCH" and now - self._out_since > max(self.m.failsafe_s, self._authorized_out):
@@ -102,12 +141,14 @@ class MissionCore:
                 cmds += self._set("LINK_RECOVERY") + self._goto_nearest_covered()
         return cmds
 
-    def on_detection(self, casualty_cell: int) -> list:
+    def on_detection(self, casualty_cell: int, now: float = 0.0) -> list:
         if self.state in ("DONE", "REPORT"):
             return []
         self._detected_at = casualty_cell
-        if self.margin_db >= self.m.link_threshold_db:
-            return [("report", casualty_cell)] + self._set("DONE")
+        if self.video_ok:
+            return self._report("video")
+        if self.narrowband_ok:
+            return self._set("REPORT") + self._send_or_wait(now)
         return self._set("REPORT") + self._goto_nearest_covered()
 
     def on_aerial_cue(self, rc: tuple[int, int]) -> None:
@@ -136,7 +177,7 @@ class MissionCore:
         if self.state in ("LINK_RECOVERY", "REPORT"):
             # Navigation to the recovery point finished or failed and we still have no link:
             # try the next-nearest covered cell instead of waiting forever.
-            if goal_reached and self.margin_db < self.m.link_threshold_db:
+            if goal_reached and not self.supervised:
                 return self._goto_nearest_covered()
             return []
         if self.state != "SEARCH":

@@ -22,7 +22,7 @@ import numpy as np
 from .belief import Belief, prior_map
 from .calibrate import RadioCalibrator
 from .detector import Detector
-from .link import LinkModel
+from .link import PROFILES, LinkModel, report_link
 from .planner import PLANNERS, PathOracle, PlanContext
 from .scenarios import Scenario
 
@@ -45,6 +45,9 @@ class RunResult:
     casualty: int = -1
     events: list[tuple[float, str]] = field(default_factory=list)
     frames: list[Frame] = field(default_factory=list)  # only with record=True
+    report_channel: str = ""  # "video" or "narrowband" when the report was delivered
+    time_alert_s: float | None = None  # when the casualty's position first reached the command post
+    unsupervised_s: float = 0.0  # time with neither live video nor narrowband telemetry
 
 
 @dataclass
@@ -76,6 +79,21 @@ class World:
             if rt
             else self.link
         )  # how radio really propagates on this site
+        # optional narrowband telemetry / report link (planning model and how it really propagates)
+        self.report_profile = None
+        self.link_report = self.link_report_truth = None
+        if m.report_radio:
+            if m.report_radio not in PROFILES:
+                raise KeyError(f"unknown report radio '{m.report_radio}'; known: {sorted(PROFILES)}")
+            self.report_profile = PROFILES[m.report_radio]
+            self.link_report = report_link(t, self.report_profile, self.link.n, m.report_rf_scale)
+            self.link_report_truth = (
+                self.link_report.variant(
+                    exponent=rt.get("exponent"), rf_map=self.link_report.rf * rt.get("rf_scale", 1.0)
+                )
+                if rt
+                else self.link_report
+            )
         self.detector = Detector(t, m.sense_radius_m, m.detect_pmax, m.detect_r0_m, m.canopy_occlusion)
         self.prior = prior_map(t, sc.person)
         lkp_truth = (t.lkp[0] + sc.truth_lkp_offset[0], t.lkp[1] + sc.truth_lkp_offset[1])
@@ -106,14 +124,28 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
     pos = t.idx(t.base)
     nodes = [t.base]
 
-    def predicted_coverage():
-        """Coverage as the robot's radio model predicts it, over the nodes that really are on the mesh."""
-        if planner.link is truth:
-            return coverage
-        conn = truth.connected_nodes(nodes)
-        return np.max(np.stack([planner.link.margin_map(n) for n in conn]), axis=0)
+    thr = m.link_threshold_db
+    nb, nb_truth, profile = world.link_report, world.link_report_truth, world.report_profile
 
-    coverage = truth.coverage(nodes)  # what the radios actually achieve
+    def supervision(video_margin, nb_model):
+        """Margin map of *supervision*: the robot is supervised where live video works or, with a
+        narrowband link, where telemetry gets through. Expressed on the video link's scale so that
+        `>= link_threshold_db` means supervised."""
+        if nb_model is None:
+            return video_margin
+        return np.maximum(video_margin, nb_model.coverage(nodes) - nb_model.threshold + thr)
+
+    def predicted_coverage():
+        """Supervision as the robot's radio models predict it, over the nodes that really are on the mesh."""
+        if planner.link is truth:
+            video = coverage
+        else:
+            conn = truth.connected_nodes(nodes)
+            video = np.max(np.stack([planner.link.margin_map(n) for n in conn]), axis=0)
+        return supervision(video, nb)
+
+    coverage = truth.coverage(nodes)  # live video: what the main radio actually achieves
+    sup_cov = supervision(coverage, nb_truth)  # video or narrowband telemetry, as it really is
     plan_cov = predicted_coverage()  # what the planner believes
     relays_left = m.relays
     time = 0.0
@@ -124,9 +156,11 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
     steps_since_plan = 0
     out_since: float | None = None
     out_total = 0.0
+    unsup_total = 0.0
+    report_channel = ""
     failsafe_events = 0
     distance = 0.0
-    t_detect = t_report = None
+    t_detect = t_report = t_alert = None
     events: list[tuple[float, str]] = []
     traj = [pos] if record else []
     relay_cells: list[int] = []
@@ -167,11 +201,12 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
             events.append((round(float(time), 1), msg))
 
     def drop_relay(cell):
-        nonlocal relays_left, coverage, plan_cov, time
+        nonlocal relays_left, coverage, sup_cov, plan_cov, time
         nodes.append(t.rc(cell))
         relay_cells.append(cell)
         relays_left -= 1
         coverage = truth.coverage(nodes)
+        sup_cov = supervision(coverage, nb_truth)
         plan_cov = predicted_coverage()
         time += m.relay_drop_s
         log(f"relay {m.relays - relays_left} deployed at {t.rc(cell)}")
@@ -220,7 +255,8 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
                 path = []
 
         # ---- decide -------------------------------------------------------------
-        connected = coverage.ravel()[pos] >= m.link_threshold_db
+        video = coverage.ravel()[pos] >= thr  # live video reaches the command post
+        connected = sup_cov.ravel()[pos] >= thr  # supervised: video or narrowband telemetry
         if state in ("SEARCH",):
             # battery reserve check (energy to drive home + 30 %)
             home_j = (
@@ -271,11 +307,30 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
                         log(f"plan: goal {t.rc(plan.goal)} with relay at {t.rc(planned_relay)}")
 
         if state == "REPORT":
-            if connected:
+            if t_alert is None and connected:  # the position gets through first, on whichever link is up
+                t_alert = time if video else time + profile.airtime_s(m.alert_payload_bytes)
+            if video:
                 t_report = time
+                report_channel = "video"
                 state = "DONE"
                 log("video received at command post — casualty reported")
                 break
+            if connected:  # narrowband only: send the report under the duty-cycle limit, or drive to video
+                t_tx = profile.airtime_s(m.report_payload_bytes)
+                d, pred = world.oracle.from_cell(pos)
+                ok = (coverage.ravel() >= thr) & np.isfinite(d)
+                t_drive = float(d[ok].min()) / m.robot_speed_mps if ok.any() else np.inf
+                if t_tx <= t_drive:
+                    if time + t_tx <= m.time_limit_s:
+                        time += t_tx
+                        t_report = time
+                        report_channel = "narrowband"
+                        state = "DONE"
+                        log(f"report sent over {profile.freq_mhz:.0f} MHz in {t_tx:.0f} s — casualty reported")
+                    break
+                if not path:
+                    path = world.oracle.path(pred, pos, int(np.argmin(np.where(ok, d, np.inf))))
+                    log(f"narrowband report would take {t_tx:.0f} s -> driving {t_drive:.0f} s to video coverage")
             if not path:
                 path = nearest_covered()
                 if not path:
@@ -304,7 +359,7 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
             continue
         nxt = path.pop(0)
         steps_since_plan += 1
-        prev_pos, prev_margin = pos, coverage.ravel()[pos]
+        prev_pos, prev_margin = pos, sup_cov.ravel()[pos]
         d_step = world.oracle.g[pos, nxt]
         if d_step == 0:  # not adjacent (should not happen) — replan
             path = []
@@ -330,7 +385,7 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
         elif planner.reactive_breadcrumbs and relays_left > 0 and state == "SEARCH":
             # SubT-style breadcrumb: signal fell through the warning band -> drop at the
             # last cell that was still well connected (robot backs up one cell).
-            mg = coverage.ravel()[pos]
+            mg = sup_cov.ravel()[pos]
             band = m.link_threshold_db + m.link_buffer_db
             if (
                 mg < band
@@ -353,9 +408,11 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
                 plan_cov = predicted_coverage()
 
         # ---- link bookkeeping ---------------------------------------------------
-        connected = coverage.ravel()[pos] >= m.link_threshold_db
+        if coverage.ravel()[pos] < thr:
+            out_total += dt  # no live video
+        connected = sup_cov.ravel()[pos] >= thr
         if not connected:
-            out_total += dt
+            unsup_total += dt
             out_since = time if out_since is None else out_since
             if state == "SEARCH" and time - out_since > max(m.failsafe_s, authorized_out):
                 state = "LINK_RECOVERY"
@@ -404,4 +461,7 @@ def run(world: World, planner_name: str, seed: int, record: bool = False, frame_
         casualty,
         events,
         frames,
+        report_channel=report_channel,
+        unsupervised_s=unsup_total,
+        time_alert_s=t_alert if t_alert is not None and t_alert <= m.time_limit_s else None,
     )

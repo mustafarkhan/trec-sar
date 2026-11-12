@@ -24,11 +24,15 @@ class LinkSim(Node):
         self.declare_parameter("scenario", "forest_winter")
         self.declare_parameter("spawn_x", 27.0)
         self.declare_parameter("spawn_y", 15.0)
-        self.world = get_world(self.get_parameter("scenario").value)
+        self.declare_parameter("report_radio", "")  # e.g. eu868_500mw: adds /link/report_margin_db
+        self.world = get_world(self.get_parameter("scenario").value, self.get_parameter("report_radio").value)
         self.t = self.world.sc.terrain
         self.spawn = (self.get_parameter("spawn_x").value, self.get_parameter("spawn_y").value)
         self.nodes = [self.t.base]
         self.cov = self.world.link.coverage(self.nodes)
+        self.nb = self.world.link_report
+        self.nb_cov = self.nb.coverage(self.nodes) if self.nb is not None else None
+        self.pub_report_margin = self.create_publisher(Float32, "/link/report_margin_db", 10)
         self.cell = self.t.base
         self.thr = self.world.sc.mission.link_threshold_db
 
@@ -51,6 +55,8 @@ class LinkSim(Node):
         rc = self.t.xy_to_cell(msg.point.x, msg.point.y)
         self.nodes.append(rc)
         self.cov = self.world.link.coverage(self.nodes)
+        if self.nb is not None:
+            self.nb_cov = self.nb.coverage(self.nodes)
         self.get_logger().info(f"relay {len(self.nodes) - 1} online at cell {rc}")
 
     def on_image(self, msg: Image):
@@ -61,6 +67,8 @@ class LinkSim(Node):
         m = self.margin()
         self.pub_margin.publish(Float32(data=m))
         self.pub_conn.publish(Bool(data=m >= self.thr))
+        if self.nb_cov is not None:
+            self.pub_report_margin.publish(Float32(data=float(self.nb_cov[self.cell])))
         arr = MarkerArray()
         for i, rc in enumerate(self.nodes):
             x, y = self.t.cell_to_xy(rc)

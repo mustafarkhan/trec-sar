@@ -1,17 +1,108 @@
 """Radio link model: log-distance path loss plus terrain obstruction loss.
 
-margin_db = Ptx + G - PL(d) - sum(obstruction along the straight line) - sensitivity
+margin_db = EIRP + G_rx - PL(d) - sum(obstruction along the straight line) - sensitivity
 
-Defaults approximate a 2.4 GHz mesh radio (FSPL at 1 m ~ 40 dB). They are
-placeholders: replace with a site survey or a calibrated model (e.g. ITU-R P.833
-for vegetation, measured tunnel loss) before drawing operational conclusions.
+Defaults approximate a 2.4 GHz mesh radio (FSPL at 1 m ~ 40 dB) at the European
+power limit: `ptx_dbm` is the radiated power (EIRP, 20 dBm = 100 mW under
+ETSI EN 300 328) and `antenna_gain_db` is the receive antenna. Propagation numbers
+are placeholders: replace with a site survey or a calibrated model (e.g. ITU-R
+P.833 for vegetation, measured tunnel loss) before drawing operational conclusions.
+
+`RadioProfile` describes a second, narrowband link in the European 868 MHz
+short-range-device band, with the power and duty-cycle limits of ERC
+Recommendation 70-03 / ETSI EN 300 220. See docs/EU_RADIO.md.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from .terrain import Terrain
+
+
+@dataclass(frozen=True)
+class RadioProfile:
+    """A regulated radio: what the rules allow and what the modem can do."""
+
+    key: str
+    title: str
+    freq_mhz: float
+    eirp_dbm: float  # radiated power; e.r.p. limits are converted with +2.15 dB
+    rx_gain_dbi: float
+    sensitivity_dbm: float
+    bitrate_bps: float
+    duty_cycle: float  # legal fraction of time on air (1.0 = no limit)
+    threshold_db: float  # fade margin required above sensitivity
+    rf_scale: float  # obstruction loss relative to the 2.4 GHz terrain numbers
+    rule: str
+
+    @property
+    def pl_1m_db(self) -> float:
+        """Free-space path loss at 1 m."""
+        return 20.0 * np.log10(self.freq_mhz) - 27.55
+
+    @property
+    def throughput_bps(self) -> float:
+        """Long-run data rate once the duty-cycle limit is respected."""
+        return self.bitrate_bps * self.duty_cycle
+
+    def airtime_s(self, payload_bytes: float) -> float:
+        """Wall-clock time to deliver a payload under the duty-cycle limit."""
+        return payload_bytes * 8.0 / self.throughput_bps
+
+
+_ERP = 2.15  # dB between e.r.p. (dipole reference) and e.i.r.p.
+
+# LoRa SF7 / 125 kHz: 5.47 kbit/s, -123 dBm (Semtech SX1276 class modems).
+# rf_scale 0.75: vegetation loss scales roughly with f^0.284 (Weissberger), (868/2440)^0.284 = 0.75.
+PROFILES: dict[str, RadioProfile] = {
+    p.key: p
+    for p in (
+        RadioProfile(
+            "eu868_500mw",
+            "868 MHz LoRa, 500 mW e.r.p., 10 % duty cycle",
+            869.525,
+            10 * np.log10(500.0) + _ERP,
+            2.0,
+            -123.0,
+            5470.0,
+            0.10,
+            6.0,
+            0.75,
+            "ERC/REC 70-03 Annex 1 band h1.7 (869.4-869.65 MHz), ETSI EN 300 220",
+        ),
+        RadioProfile(
+            "eu868_25mw",
+            "868 MHz LoRa, 25 mW e.r.p., 1 % duty cycle",
+            868.3,
+            10 * np.log10(25.0) + _ERP,
+            2.0,
+            -123.0,
+            5470.0,
+            0.01,
+            6.0,
+            0.75,
+            "ERC/REC 70-03 Annex 1 band h1.5 (868.0-868.6 MHz), ETSI EN 300 220",
+        ),
+    )
+}
+
+
+def report_link(terrain: Terrain, profile: RadioProfile, exponent: float, rf_scale: float | None = None) -> LinkModel:
+    """LinkModel for a narrowband profile on this terrain (same path-loss exponent as the site's main radio)."""
+    scale = profile.rf_scale if rf_scale is None else rf_scale
+    return LinkModel(
+        terrain,
+        ptx_dbm=profile.eirp_dbm,
+        antenna_gain_db=profile.rx_gain_dbi,
+        sensitivity_dbm=profile.sensitivity_dbm,
+        pl_1m_db=float(profile.pl_1m_db),
+        exponent=exponent,
+        threshold_db=profile.threshold_db,
+        rf_map=terrain.rf_db_per_m * scale,
+    )
 
 
 class LinkModel:
