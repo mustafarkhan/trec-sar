@@ -11,6 +11,11 @@ All notable changes to this project are documented here. The format follows
   1 %). With `--report-radio` (CLI) or `report_radio:=` (ROS 2 headless launch) the robot is supervised where video
   or narrowband telemetry works, sends a position alert first, and delivers the confirmed report over the
   narrowband link when its duty-cycle-limited airtime is shorter than the drive back to video coverage.
+- **Standard report formats** (`docs/REPORT_FORMATS.md`): `trecsar run --cap report.xml --geojson mission.geojson`
+  writes the casualty report as a CAP 1.2 alert (status `Exercise`, scope `Restricted`) and the mission as
+  GeoJSON. Sites can be georeferenced in ETRS89 (`georef:` in `site.yaml`); reports carry ETRS-TM35FIN or
+  ETRS89 / UTM grid coordinates from a dependency-free transverse Mercator implementation checked against PROJ.
+  The ROS 2 report JSON carries the same coordinates.
 - Three two-link benchmark variants; results record the report channel, time to the position alert, and time
   without any supervision. `MissionCore` and the link simulator support the second link
   (`/link/report_margin_db`).

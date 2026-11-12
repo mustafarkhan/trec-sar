@@ -13,7 +13,16 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
+from .geo import Georef
 from .terrain import Terrain
+
+# The built-in sites are fictional. These anchors only make their reports and map exports
+# well-formed; they are flagged illustrative in every output.
+_ANCHOR = {
+    "forest_winter": Georef(62.0, 26.0, illustrative=True),  # central Finland
+    "tunnel": Georef(46.5, 8.6, illustrative=True),  # central Alps
+    "hazmat_industrial": Georef(51.9, 4.4, illustrative=True),  # Rhine delta
+}
 
 
 @dataclass
@@ -144,7 +153,18 @@ def forest_winter(seed: int = 0, relays: int = 3) -> Scenario:
     cost[road], rf[road], canopy[road], aff[road] = 1.0, 0.0, 0.0, 0.3
     labels["road"] = road
 
-    t = Terrain("forest_winter", res, cost, rf, canopy, aff, base=(97, 4), lkp=(86, 18), labels=labels)
+    t = Terrain(
+        "forest_winter",
+        res,
+        cost,
+        rf,
+        canopy,
+        aff,
+        base=(97, 4),
+        lkp=(86, 18),
+        labels=labels,
+        georef=_ANCHOR["forest_winter"],
+    )
     t.validate()
     return Scenario(
         key="forest_winter",
@@ -199,7 +219,9 @@ def tunnel(seed: int = 0, relays: int = 4) -> Scenario:
     labels["rock-fall rubble"] = fall
 
     work_face = (20, 84) if corr[20, 84] else tuple(np.argwhere(corr)[-1])
-    t = Terrain("tunnel", res, cost, rf, canopy, aff, base=(50, 1), lkp=work_face, labels=labels)
+    t = Terrain(
+        "tunnel", res, cost, rf, canopy, aff, base=(50, 1), lkp=work_face, labels=labels, georef=_ANCHOR["tunnel"]
+    )
     t.validate()
     return Scenario(
         key="tunnel",
@@ -268,7 +290,18 @@ def hazmat_industrial(seed: int = 0, relays: int = 2) -> Scenario:
     aff[plume] *= 1.6
     labels["gas plume (no humans)"] = plume
 
-    t = Terrain("hazmat_industrial", res, cost, rf, canopy, aff, base=(43, 2), lkp=source, labels=labels)
+    t = Terrain(
+        "hazmat_industrial",
+        res,
+        cost,
+        rf,
+        canopy,
+        aff,
+        base=(43, 2),
+        lkp=source,
+        labels=labels,
+        georef=_ANCHOR["hazmat_industrial"],
+    )
     t.validate()
     return Scenario(
         key="hazmat_industrial",

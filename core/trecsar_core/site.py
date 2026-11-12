@@ -20,6 +20,7 @@ person: {category: student, median_distance_m: 150, sigma_log: 0.7}
 mission: {time_limit_min: 45, relays: 2, aerial_cue_time_s: 120}
 classes:                   # optional: add or override classes
   hedge: {cost: 3.0, rf_db_per_m: 0.2, canopy: 0.6, affinity: 0.5}
+georef: {lat: 61.4500, lon: 23.8500}   # optional: ETRS89 position of the map's south-west corner
 ```
 
 Then: `trecsar run --site path/to/site.yaml` or `build_site("path/to/site.yaml")`.
@@ -31,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .geo import Georef
 from .scenarios import LostPersonProfile, MissionConfig, Scenario
 from .terrain import Terrain
 
@@ -138,6 +140,11 @@ def build_site(path: str | Path) -> Scenario:
     t = terrain_from_image(
         img, cfg["legend"], classes, cfg["resolution_m"], cfg["base"], cfg["lkp"], name, int(cfg.get("tolerance", 40))
     )
+    if cfg.get("georef"):
+        g = cfg["georef"]
+        if not {"lat", "lon"} <= set(g):
+            raise ValueError(f"{path}: georef needs 'lat' and 'lon' (ETRS89 degrees of the south-west corner)")
+        t.georef = Georef(float(g["lat"]), float(g["lon"]), bool(g.get("illustrative", False)))
     p = cfg.get("person") or {}
     person = LostPersonProfile(
         p.get("category", "unknown"),

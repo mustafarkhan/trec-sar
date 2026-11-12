@@ -108,6 +108,13 @@ class MissionManager(Node):
                     "relays_used": self.world.sc.mission.relays - self.core.relays_left,
                     "channel": self.core.report_channel,
                 }
+                if self.t.georef is not None:
+                    from trecsar_core.geo import grid_reference
+
+                    lat, lon = self.t.georef.to_latlon(x, y)
+                    grid, e, n = grid_reference(lat, lon)
+                    rep.update(lat=round(lat, 6), lon=round(lon, 6), grid=grid, easting=round(e), northing=round(n))
+                    rep["illustrative_position"] = self.t.georef.illustrative
                 self.pub_report.publish(String(data=json.dumps(rep)))
                 self.cancel_goal()
                 self.get_logger().warn(f"CASUALTY REPORTED: {rep}")

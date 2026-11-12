@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .geo import Georef
+
 
 @dataclass
 class Terrain:
@@ -22,6 +24,7 @@ class Terrain:
     base: tuple[int, int]  # incident command post / radio base station
     lkp: tuple[int, int]  # last known point of the missing person
     labels: dict[str, np.ndarray] = field(default_factory=dict)  # named masks for plots/docs
+    georef: Georef | None = None  # ETRS89 anchor of the south-west corner (None = local frame only)
 
     @property
     def shape(self) -> tuple[int, int]:

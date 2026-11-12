@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 from . import __version__
@@ -75,7 +76,7 @@ def cmd_scenarios(a):
 
 def cmd_run(a):
     w = _world(a)
-    r = run(w, a.planner, a.seed, record=bool(a.plot) or a.events)
+    r = run(w, a.planner, a.seed, record=bool(a.plot) or a.events or bool(a.geojson))
     if a.json:
         print(json.dumps(_summary(r), indent=2))
     else:
@@ -85,6 +86,20 @@ def cmd_run(a):
         from .plot import plot_runs
 
         print("plot:", plot_runs(w, [r], a.plot))
+    if a.cap or a.geojson:
+        from .report import casualty_report, to_cap, to_geojson, utc_now
+
+        if a.geojson:
+            Path(a.geojson).write_text(json.dumps(to_geojson(w, r), indent=1))
+            print("geojson:", a.geojson, file=sys.stderr)
+        if a.cap:
+            rep = casualty_report(w, r)
+            if rep is None:
+                print("cap: no casualty report to export (mission did not report)", file=sys.stderr)
+            else:
+                start = utc_now() - timedelta(seconds=rep.time_report_s)  # as if the report arrived just now
+                Path(a.cap).write_text(to_cap(rep, start, status=a.cap_status))
+                print("cap:", a.cap, file=sys.stderr)
     return 0
 
 
@@ -138,6 +153,9 @@ def main(argv=None) -> int:
     common(p)
     p.add_argument("--planner", default="trecsar", choices=list(PLANNERS))
     p.add_argument("--events", action="store_true", help="print the mission event log")
+    p.add_argument("--cap", metavar="FILE", help="write the casualty report as a CAP 1.2 alert (XML)")
+    p.add_argument("--cap-status", default="Exercise", choices=["Exercise", "Test", "Actual"])
+    p.add_argument("--geojson", metavar="FILE", help="write casualty, relays, command post and track as GeoJSON")
     p.set_defaults(fn=cmd_run)
 
     p = sub.add_parser("compare", help="run several planners on the same mission")

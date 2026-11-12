@@ -154,6 +154,13 @@ but nobody is found sooner and the operator is without live video for about 17 m
 changes nothing: rock blocks both bands, and planned relays remain necessary (TREC-SAR 91 % with 0.8 relays
 against 86–88 % with 2.6). Limits, assumptions and sources: [`docs/EU_RADIO.md`](docs/EU_RADIO.md).
 
+### Reports a command system can read (new in 0.3)
+
+`trecsar run --cap report.xml --geojson mission.geojson` writes the casualty report as a **CAP 1.2** alert (the
+OASIS / ITU-T X.1303 format used by European warning and emergency-management systems) and the mission as
+**GeoJSON**. Positions are ETRS89 with the national grid — ETRS-TM35FIN in Finland, ETRS89 / UTM elsewhere.
+Simulated reports are marked `Exercise` and `Restricted`. Details: [`docs/REPORT_FORMATS.md`](docs/REPORT_FORMATS.md).
+
 ### Thermal person detector (measured)
 
 A YOLO11n detector fine-tuned on the open **HIT-UAV** drone thermal dataset (Suo et al., *Scientific Data* 2023),

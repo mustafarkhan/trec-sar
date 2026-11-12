@@ -13,6 +13,7 @@ legend:
   "#000000": building
 base: [87, 2]              # command post on the ring road, [row, col]
 lkp: [46, 40]              # last seen where the walkway meets the park
+georef: {lat: 60.2000, lon: 24.9000, illustrative: true}   # ETRS89 position of the south-west corner
 person: {category: young adult, median_distance_m: 160, sigma_log: 0.7}
 mission: {time_limit_min: 40, relays: 2, aerial_cue_time_s: 120}
 narrative: >
