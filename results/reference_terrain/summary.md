@@ -1,8 +1,8 @@
 # Results — reference (tuning) terrain
 
-200 runs per planner per scenario (casualty seeds 1000–1199), same terrain, casualty location and detection luck for every planner in a given run. Planner weights were tuned on terrain 0 with casualty seeds 100–159 only; this table is that same terrain (the one shown in the maps, replays and Gazebo worlds), so only the casualties are held out. Results on freshly generated terrains are in `results/summary.md`. Runtime 557 s.
+200 runs per planner per scenario (casualty seeds 1000–1199), same terrain, casualty location and detection luck for every planner in a given run. Planner weights were tuned on terrain 0 with casualty seeds 100–159 only; this table is that same terrain (the one shown in the maps, replays and Gazebo worlds), so only the casualties are held out. Results on freshly generated terrains are in `results/summary.md`. Runtime 896 s.
 
-*Success* = a human at the command post received the detection before the time limit. *Time* counts failures as the full time limit (so medians are conservative). 95 % Wilson intervals in brackets.
+*Success* = a human at the command post received the detection before the time limit (with an image they can confirm: live video, or a thumbnail sent over the narrowband link). *Time* counts failures as the full time limit (so medians are conservative). 95 % Wilson intervals in brackets.
 
 ## Forest, winter (3 relays)
 
@@ -63,3 +63,63 @@
 | Probability-greedy + planned link loss (ablation) | 98% [96%–99%] | 3.8 min | 7.0 min | 58 s | 0.0 | 1.2 |
 | TREC-SAR (link-aware, planned relays) | 98% [96%–99%] | 3.9 min | 7.0 min | 80 s | 0.7 | 0.9 |
 | TREC-SAR + online radio calibration | 98% [96%–99%] | 3.8 min | 7.0 min | 85 s | 0.6 | 0.9 |
+
+## Urban block after an earthquake
+
+| Policy | Success | Median time | Mean time | Time out of link | Failsafe trips | Relays used |
+|---|---|---|---|---|---|---|
+| Lawnmower sweep + reactive relays | 51% [44%–58%] | 38.9 min | 39.0 min | 1264 s | 19.0 | 3.0 |
+| Probability-greedy + reactive relays | 99% [96%–100%] | 2.5 min | 3.8 min | 10 s | 0.2 | 1.6 |
+| Probability-greedy + planned link loss (ablation) | 100% [98%–100%] | 2.5 min | 3.7 min | 7 s | 0.0 | 1.6 |
+| TREC-SAR (link-aware, planned relays) | 100% [98%–100%] | 2.7 min | 3.6 min | 34 s | 0.0 | 1.2 |
+| TREC-SAR + online radio calibration | 100% [98%–100%] | 2.7 min | 3.6 min | 36 s | 0.0 | 1.2 |
+
+## Twin-bore road tunnel fire (1 km)
+
+| Policy | Success | Median time | Mean time | Time out of link | Failsafe trips | Relays used |
+|---|---|---|---|---|---|---|
+| Lawnmower sweep + reactive relays | 96% [92%–98%] | 11.6 min | 19.0 min | 127 s | 2.4 | 3.2 |
+| Probability-greedy + reactive relays | 99% [96%–100%] | 6.3 min | 8.8 min | 26 s | 0.5 | 2.2 |
+| Probability-greedy + planned link loss (ablation) | 99% [96%–100%] | 6.3 min | 8.9 min | 25 s | 0.0 | 2.3 |
+| TREC-SAR (link-aware, planned relays) | 99% [96%–100%] | 6.3 min | 9.0 min | 193 s | 0.0 | 1.0 |
+| TREC-SAR + online radio calibration | 99% [96%–100%] | 6.3 min | 9.0 min | 193 s | 0.0 | 1.0 |
+
+## Forest + 868 MHz report link (500 mW, 10 % duty cycle)
+
+| Policy | Success | Median time to position alert | Median time | Mean time | Time without live video | Time unsupervised | Reports sent over 868 MHz | Failsafe trips | Relays used |
+|---|---|---|---|---|---|---|---|---|---|
+| Lawnmower sweep + reactive relays | 42% [35%–49%] | 90.0 min | 90.0 min | 66.1 min | 2710 s | 0 s | 24% | 0.0 | 0.9 |
+| Probability-greedy + reactive relays | 62% [55%–68%] | 35.4 min | 36.3 min | 46.7 min | 1153 s | 0 s | 16% | 0.0 | 1.3 |
+| Probability-greedy + planned link loss (ablation) | 62% [55%–68%] | 35.4 min | 36.3 min | 46.7 min | 1153 s | 0 s | 16% | 0.0 | 1.3 |
+| TREC-SAR (link-aware, planned relays) | 62% [55%–68%] | 37.4 min | 37.9 min | 46.9 min | 1209 s | 13 s | 16% | 0.1 | 0.6 |
+| TREC-SAR + online radio calibration | 62% [55%–68%] | 37.4 min | 37.9 min | 46.9 min | 1209 s | 13 s | 16% | 0.1 | 0.6 |
+
+## Forest + 868 MHz report link (25 mW, 1 % duty cycle)
+
+| Policy | Success | Median time to position alert | Median time | Mean time | Time without live video | Time unsupervised | Reports sent over 868 MHz | Failsafe trips | Relays used |
+|---|---|---|---|---|---|---|---|---|---|
+| Lawnmower sweep + reactive relays | 42% [35%–49%] | 90.0 min | 90.0 min | 66.4 min | 2743 s | 0 s | 0% | 0.0 | 0.9 |
+| Probability-greedy + reactive relays | 62% [55%–68%] | 35.5 min | 37.1 min | 46.9 min | 1170 s | 0 s | 0% | 0.0 | 1.3 |
+| Probability-greedy + planned link loss (ablation) | 62% [55%–68%] | 35.5 min | 37.1 min | 46.9 min | 1170 s | 0 s | 0% | 0.0 | 1.3 |
+| TREC-SAR (link-aware, planned relays) | 64% [57%–70%] | 36.3 min | 38.0 min | 46.2 min | 1213 s | 18 s | 0% | 0.1 | 0.7 |
+| TREC-SAR + online radio calibration | 64% [57%–70%] | 36.3 min | 38.0 min | 46.2 min | 1213 s | 18 s | 0% | 0.1 | 0.7 |
+
+## Urban earthquake + 868 MHz report link (500 mW, 10 % duty cycle)
+
+| Policy | Success | Median time to position alert | Median time | Mean time | Time without live video | Time unsupervised | Reports sent over 868 MHz | Failsafe trips | Relays used |
+|---|---|---|---|---|---|---|---|---|---|
+| Lawnmower sweep + reactive relays | 78% [72%–83%] | 29.8 min | 30.4 min | 32.0 min | 1376 s | 299 s | 1% | 4.9 | 3.0 |
+| Probability-greedy + reactive relays | 100% [98%–100%] | 2.4 min | 3.1 min | 3.9 min | 169 s | 1 s | 2% | 0.0 | 0.6 |
+| Probability-greedy + planned link loss (ablation) | 100% [98%–100%] | 2.4 min | 3.1 min | 3.9 min | 171 s | 2 s | 2% | 0.0 | 0.6 |
+| TREC-SAR (link-aware, planned relays) | 100% [98%–100%] | 2.4 min | 3.1 min | 3.9 min | 177 s | 26 s | 1% | 0.0 | 0.3 |
+| TREC-SAR + online radio calibration | 100% [98%–100%] | 2.4 min | 3.1 min | 3.9 min | 177 s | 26 s | 1% | 0.0 | 0.3 |
+
+## Tunnel + 868 MHz report link (500 mW, 10 % duty cycle)
+
+| Policy | Success | Median time to position alert | Median time | Mean time | Time without live video | Time unsupervised | Reports sent over 868 MHz | Failsafe trips | Relays used |
+|---|---|---|---|---|---|---|---|---|---|
+| Lawnmower sweep + reactive relays | 90% [85%–93%] | 5.9 min | 5.9 min | 17.9 min | 226 s | 226 s | 0% | 3.7 | 2.8 |
+| Probability-greedy + reactive relays | 94% [90%–97%] | 5.9 min | 5.9 min | 11.0 min | 135 s | 135 s | 0% | 2.2 | 2.8 |
+| Probability-greedy + planned link loss (ablation) | 98% [96%–99%] | 5.9 min | 5.9 min | 9.4 min | 64 s | 64 s | 0% | 0.1 | 2.8 |
+| TREC-SAR (link-aware, planned relays) | 97% [94%–99%] | 6.5 min | 6.5 min | 9.8 min | 326 s | 326 s | 0% | 0.7 | 0.3 |
+| TREC-SAR + online radio calibration | 97% [94%–99%] | 6.5 min | 6.5 min | 9.8 min | 326 s | 326 s | 0% | 0.7 | 0.3 |
