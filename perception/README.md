@@ -12,7 +12,8 @@ the **held-out test split** (579 images never used for training or model selecti
 Reproduce: `EPOCHS=25 python3 perception/train_ci.py` (or the `perception` workflow). Raw numbers:
 [`results/perception/metrics.json`](../results/perception/metrics.json). Weights:
 [`weights/hituav_person_yolo11n.pt`](weights/hituav_person_yolo11n.pt) (5.5 MB, trained on HIT-UAV — check the
-dataset's terms before commercial use).
+dataset's terms before commercial use). Ultralytics YOLO11 is AGPL-3.0 and Ultralytics applies those terms to trained
+models, so these weights are **not** covered by the repository's MIT licence.
 
 ![Detections on held-out thermal test images](../results/perception/predictions.png)
 

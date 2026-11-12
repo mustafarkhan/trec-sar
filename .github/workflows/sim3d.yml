@@ -7,6 +7,9 @@ on:
     paths: ["ros2_ws/**", "core/trecsar_core/**", ".github/workflows/sim3d.yml"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   gazebo-nav2-mission:
     runs-on: ubuntu-24.04

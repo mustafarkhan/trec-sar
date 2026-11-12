@@ -16,8 +16,8 @@ The planner then predicts coverage — and decides where relays go and how long 
 planned link-loss window lasts — from the calibrated model instead of the
 placeholder numbers. Background: log-distance path loss with per-class
 obstruction loss (ITU-R P.833 for vegetation), and online channel estimation from
-robot-collected samples (Malmirchegini & Mostofi, IJRR 2012; Fink & Kumar, ICRA
-2010). See docs/RESEARCH.md.
+robot-collected samples (Malmirchegini & Mostofi, IEEE Trans. Wireless Commun. 2012;
+Fink & Kumar, ICRA 2010). See docs/RESEARCH.md.
 """
 
 from __future__ import annotations

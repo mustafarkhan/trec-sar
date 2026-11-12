@@ -123,8 +123,14 @@ def build_site(path: str | Path) -> Scenario:
             raise ValueError(f"{path}: missing required key '{req}'")
     classes = dict(CLASSES)
     for k, v in (cfg.get("classes") or {}).items():
-        spec = dict(v)
-        if spec.get("cost") in ("inf", "impassable", None):
+        spec = dict(v or {})
+        unknown = set(spec) - set(CLASSES["open"])
+        if unknown:
+            raise ValueError(
+                f"{path}: class '{k}' has unknown keys {sorted(unknown)}; allowed: {sorted(CLASSES['open'])}"
+            )
+        # an explicit `cost: inf` / `impassable` / null means no-go; a missing key keeps the base class's cost
+        if "cost" in spec and spec["cost"] in ("inf", "impassable", None):
             spec["cost"] = INF
         classes[k] = {**CLASSES.get(k, CLASSES["open"]), **spec}
     img = np.asarray(Image.open(path.parent / cfg["map"]).convert("RGB"))

@@ -21,8 +21,12 @@ def main():
     ap.add_argument("--runs", type=int, default=200)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--out", type=Path, default=ROOT / "results")
+    ap.add_argument("--reference", action="store_true", help="reference (tuning) terrain instead of held-out terrains")
     a = ap.parse_args()
-    run_benchmark(a.runs, a.workers, a.out)
+    if a.reference:
+        run_benchmark(a.runs, a.workers, a.out, terrains=(0,))
+    else:
+        run_benchmark(a.runs, a.workers, a.out)
     print((a.out / "summary.md").read_text())
 
 

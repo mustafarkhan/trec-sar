@@ -14,7 +14,8 @@ rescue with modern open-source robotics.
 
 **Videos:** [command-line walkthrough (1 min)](media/trec-sar_cli_demo.mp4) · **project walkthrough (3 min):** [`media/trec-sar_github.mp4`](media/trec-sar_github.mp4) — the original project, how the
 planner decides, three scenario replays, results, ablation, online radio calibration, the Gazebo + Nav2 CI mission
-and limits. Every map frame is a recorded simulation run.
+and limits. Every map frame is a recorded simulation run. The videos were rendered for 0.2 and quote the
+reference-terrain numbers; see the correction under *Simulation benchmark*.
 
 ## Part 1 — TREC: the original project
 
@@ -65,32 +66,44 @@ where to drop relay nodes, and when to accept a planned, time-bounded link loss.
 
 ![Success and relay use](results/success_and_relays.png)
 
-200 held-out simulated missions per policy per scenario (seeds never used for tuning), same casualty location and
-detection luck for every policy. Success = casualty reported to the command post within the time limit.
+200 held-out simulated missions per policy per scenario: 25 casualties on each of 8 freshly generated terrains.
+Neither the terrains nor the casualty seeds were used for tuning. Every policy gets the same terrain, casualty
+location and detection luck in a given run. Success = casualty reported to the command post within the time limit.
 
-| Scenario | Lawnmower + reactive relays | Greedy + reactive relays | Greedy + planned link loss *(ablation)* | **TREC-SAR** | **TREC-SAR + radio calibration** | Relays used (ablation → TREC-SAR → +calibration) |
+| Scenario | Lawnmower + reactive relays | Greedy + reactive relays | Greedy + planned link loss *(ablation)* | **TREC-SAR** | **TREC-SAR + radio calibration** | Relays used (greedy → TREC-SAR → +calibration) |
 |---|---|---|---|---|---|---|
-| Boreal forest, winter, 3 relays | 36 % | 42 % | 63 % | **60 %** | **64 %** | 2.4 → **1.2** → 1.6 |
-| Forest, only 1 relay | 23 % | 50 % | 62 % | **61 %** | **62 %** | 1.0 → **0.7** → 0.7 |
-| Forest, wrong last-known point (~95 m) | 32 % | 39 % | 60 % | **56 %** | **58 %** | 2.5 → **1.3** → 1.8 |
-| Forest, radio 1.8× worse than planned | 22 % | 39 % | 61 % | **57 %** | **62 %** | 2.7 → 2.0 → **0.7** |
-| Tunnel after rock fall | 90 % | 94 % | 98 % | **98 %** | **98 %** | 2.8 → **0.2** → 0.2 |
-| Industrial chemical release | 88 % | 96 % | 98 % | **98 %** | **98 %** | 1.2 → **0.9** → 0.9 |
+| Boreal forest, winter, 3 relays | 25 % | 74 % | 73 % | **74 %** | **74 %** | 2.4 → **1.2** → 1.2 |
+| Forest, only 1 relay | 22 % | 62 % | 74 % | **73 %** | **74 %** | 1.0 → **0.6** → 0.6 |
+| Forest, wrong last-known point (~95 m) | 27 % | 68 % | 68 % | **67 %** | **67 %** | 2.4 → 1.4 → **1.3** |
+| Forest, radio 1.8× worse than planned | 22 % | 60 % | 70 % | **62 %** | **68 %** | 2.6 → 1.6 → **1.1** |
+| Tunnel after rock fall | 68 % | 86 % | 88 % | **92 %** | **92 %** | 2.6 → **0.8** → 0.8 |
+| Industrial chemical release | 97 % | 98 % | 98 % | **98 %** | **98 %** | 1.2 → **0.6** → 0.6 |
 
-Full tables with 95 % confidence intervals: [`results/summary.md`](results/summary.md).
+Full tables with 95 % confidence intervals and the per-terrain range: [`results/summary.md`](results/summary.md).
 
 **What the numbers say — honestly:**
 
-1. **Link-awareness is the big win.** Robots that are thrown back by a link-loss failsafe and keep re-trying the
-   same out-of-range area waste the mission. Planning the link loss explicitly — search autonomously for a bounded
-   time, then come back into coverage to report — lifts forest success from about 40 % to about 60 %.
-2. **TREC-SAR matches the best policy's success with far fewer relays** (about half in the forest, about 90 % fewer
-   in the tunnel), because it places relays only where the probability map says they pay off.
-3. **The price is less live video.** In the tunnel TREC-SAR spends about 5.6 min out of link per mission versus about
-   1 min for the relay-hungry ablation. Whether that trade is acceptable is an operator decision, and the weights
-   are exposed so it can be tuned.
-4. **Where it does not help:** in the open industrial site all probability-driven policies perform the same, and
-   with a wrong last-known point TREC-SAR is slightly behind the ablation (confidence intervals overlap).
+1. **With enough relays and a correct radio model, link-aware planning does not find more people.** In the forest
+   all three probability-driven policies report 73–74 % of casualties. What TREC-SAR changes is the cost: it reaches
+   the same success with **half the relays in the forest and the chemical site (1.2 vs 2.4, 0.6 vs 1.2) and about
+   70 % fewer in the tunnel (0.8 vs 2.6)**, because it places relays only where the probability map says they pay off.
+2. **Planning the link loss matters when the reactive habit breaks down.** With a single relay, the reactive
+   policy is thrown back by the link-loss failsafe 7 times per mission and reports 62 %; both policies that plan the
+   link loss report 73–74 %. With a radio 1.8× worse than planned the gap is 60 % against 68–70 %.
+3. **In the tunnel TREC-SAR is ahead on every measure** (92 % against 86–88 %, median 5.1 against 5.8 min), but the
+   success intervals overlap slightly, so treat the relay saving as the solid result.
+4. **The price is less live video.** TREC-SAR spends about 6 min per forest mission out of link against about 1 min
+   for the relay-hungry policies. Whether that trade is acceptable is an operator decision, and the weights are
+   exposed so it can be tuned.
+5. **Where it is worse:** with a wrong radio model and no calibration, TREC-SAR plans into coverage that is not
+   there (10.6 failsafe trips per mission, 62 %, median 47 min). Online calibration, below, repairs most of that.
+6. **Terrain matters more than policy.** On single terrains, success for the same policy ranges from 48 % to 92 %.
+
+> **Correction (November 2026).** Versions up to 0.2 reported this benchmark on one terrain per scenario — the
+> terrain the planner weights were tuned on. There the reactive baseline did badly (42 %) and link-aware planning
+> looked like a jump from about 40 % to 60 % forest success. On eight freshly generated terrains that gap is gone;
+> the relay saving and the single-relay and wrong-radio results remain. The old tables are kept in
+> [`results/reference_terrain/`](results/reference_terrain/summary.md) and `trecsar bench --reference` reproduces them.
 
 ![Time to report](results/time_to_report.png)
 
@@ -104,20 +117,21 @@ regression (prior = the planning numbers) updates the path-loss exponent and the
 link-loss windows then use the calibrated model. Readings below receiver sensitivity are ignored, so the model only
 moves where the radio can actually be heard.
 
-Stress test: the real radio is 1.8× more attenuating than planned (path-loss exponent 2.4 instead of 2.2). In
-simulation the estimate converges to 0.20 dB/m for dense spruce (true 0.216) and an exponent of 2.45 (true 2.4).
-Over 200 held-out missions:
+Stress test: the real radio is 1.8× more attenuating than planned (path-loss exponent 2.4 instead of 2.2). On the
+reference terrain the estimate converges to 0.20 dB/m for dense spruce (true 0.216) and an exponent of 2.45
+(true 2.4). Over 200 held-out missions on 8 terrains:
 
 | Forest, radio 1.8× worse than planned | Success | Median time to report | Failsafe trips | Relays used |
 |---|---|---|---|---|
-| Greedy + planned link loss *(ablation)* | 61 % | 41 min | 2.7 | 2.7 |
-| TREC-SAR with the planning model | 57 % | 54 min | 9.6 | 2.0 |
-| **TREC-SAR + online radio calibration** | **62 %** | **37 min** | **2.8** | **0.7** |
+| Greedy + planned link loss *(ablation)* | 70 % | 30 min | 2.9 | 2.6 |
+| TREC-SAR with the planning model | 62 % | 47 min | 10.6 | 1.6 |
+| **TREC-SAR + online radio calibration** | **68 %** | **36 min** | **2.9** | **1.1** |
 
-Calibration does not change the success rate within the confidence intervals. What it fixes is behaviour: the
-uncalibrated robot keeps planning into coverage that does not exist and trips the link-loss failsafe 3.4× as often.
-The calibrated robot reports 17 min sooner at the median and uses a quarter of the relays the ablation needs. The
-same logic runs on the live robot: `MissionCore` calibrates from `/link/margin_db` with `planner:=trecsar_cal`.
+The uncalibrated robot keeps planning into coverage that does not exist and trips the link-loss failsafe 3.7× as
+often. Calibration brings the median time to report down by 11 min and the success rate from 62 % to 68 % (the
+intervals overlap), with fewer than half the relays the ablation uses. The ablation is still 6 min faster at the
+median: it buys that with relays. The same logic runs on the live robot: `MissionCore` calibrates from
+`/link/margin_db` with `planner:=trecsar_cal`.
 
 ### Thermal person detector (measured)
 
@@ -147,7 +161,7 @@ pip install -e "core[viz]"
 trecsar scenarios                                           # list built-in scenarios
 trecsar run --scenario forest_winter --seed 1002 --events   # one mission, with its event log
 trecsar compare --scenario tunnel --seed 1003 --plot compare.png   # all planners, same mission
-trecsar bench --runs 200                                    # the full held-out benchmark (~3 min)
+trecsar bench --runs 200                                    # the full held-out benchmark (~10 min on 2 cores)
 ```
 
 Example output:
@@ -158,6 +172,7 @@ Underground tunnel network — missing worker after rock fall  ·  seed 1003
  greedy_bayes  NOT REPORTED (TIMEOUT)     relays 4  out-of-link 28.63 min  distance 6005 m  failsafe 28
     greedy_sf  REPORTED at 13.25 min      relays 4  out-of-link 1.56 min  distance 1255 m  failsafe 0
       trecsar  REPORTED at 13.2 min       relays 0  out-of-link 8.67 min  distance 1332 m  failsafe 1
+  trecsar_cal  REPORTED at 13.2 min       relays 0  out-of-link 8.67 min  distance 1332 m  failsafe 1
 ```
 
 Every command accepts `--json` for scripting. Python API:
@@ -209,11 +224,11 @@ ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter planner:=t
 
 | | |
 |---|---|
-| Tests | 61 unit, behaviour, calibration, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
+| Tests | 66 unit, behaviour, calibration, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
 | ROS 2 | All four packages built in CI on ROS 2 Jazzy; end-to-end headless mission must deliver a casualty report |
 | 3D | Gazebo Harmonic + Nav2 mission in CI must find the casualty and deliver the report |
 | Perception | Thermal person detector trained and evaluated in CI on HIT-UAV (held-out test mAP@0.5 0.90) |
-| Reproducibility | Fixed seeds; tuning seeds (100–159) separate from evaluation seeds (1000–1199); Gazebo worlds regenerated and diffed in CI |
+| Reproducibility | Fixed seeds; benchmark terrains (1–8) and casualty seeds (1000–1199) are both held out from tuning (terrain 0, seeds 100–159); results regenerate bit-for-bit; Gazebo worlds regenerated and diffed in CI |
 | Repository hygiene | CI checks commit authorship and messages, keeps personal notes out, and runs gitleaks over the full history |
 | Code style | `ruff` lint + format, pre-commit hooks |
 | Failure analysis | FMEA-style table of failure modes and limitations in [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md) |
@@ -225,7 +240,7 @@ core/            trecsar_core: terrain, probability map, radio model, sensor mod
                  live-robot mission logic, custom sites, CLI, benchmark, plotting       (pure Python, tested)
 examples/sites/  custom site example (campus park)
 scripts/         make_figures.py, make_videos.py (mission replays → MP4), run_experiments.py
-results/         summary.md, results.csv, figures
+results/         summary.md, results.csv, figures (held-out terrains); reference_terrain/ (the tuning terrain)
 media/           LinkedIn and GitHub videos, README GIF
 ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimensions)
                  trecsar_gazebo       Gazebo Harmonic worlds generated from the same scenarios
@@ -255,13 +270,15 @@ Guard's SAROPS), lost-person behaviour statistics (Koester), and relay "breadcru
 Subterranean Challenge. What TREC-SAR adds is the **combination**: relay placement and link-loss windows chosen from
 the *probability of finding the person*, with the radio model **calibrated online during the search** (methods
 from robot channel-estimation research), evaluated on time-to-report rather than time-to-detect, packaged as an
-open, reproducible benchmark for civilian SAR (forest, tunnel and hazmat). I have not found this exact combination
+open, reproducible benchmark for civilian SAR (forest, tunnel and hazmat). In that benchmark the combination saves
+relays; it does not raise the success rate where relays are plentiful. I have not found this exact combination
 in open source, but I make no claim that nobody has done it. See [`docs/RESEARCH.md`](docs/RESEARCH.md).
 
 ## Limitations
 
-All results are simulation. Radio, detection and lost-person parameters are plausible placeholders, not field
-calibration (online calibration narrows the radio gap but starts from those placeholders). The ROS 2 stack runs end
+All results are simulation. The planner weights were tuned on one terrain per scenario, and results on that
+terrain overstated the benefit (see the correction above). Radio, detection and lost-person parameters are
+plausible placeholders, not field calibration (online calibration narrows the radio gap but starts from those placeholders). The ROS 2 stack runs end
 to end in CI both headless and in Gazebo + Nav2; the CI 3D run uses ground-truth localisation, and nothing has been
 tested on hardware. TREC-SAR is not certified
 for operational use. Full list:
@@ -274,4 +291,10 @@ research, please cite it via [`CITATION.cff`](CITATION.cff) (GitHub shows a "Cit
 
 ## License
 
-MIT. Datasets keep their own licences.
+The TREC-SAR code is MIT-licensed. Two parts of the perception pipeline are not:
+
+- **Ultralytics YOLO11** (used by `perception/train_ci.py` and the optional `yolo_detector` node) is AGPL-3.0, and
+  Ultralytics applies the same terms to models trained with it. Treat the bundled weights
+  `perception/weights/hituav_person_yolo11n.pt` as AGPL-3.0 unless you hold an Ultralytics enterprise licence.
+  The planner, simulator, benchmark and the rest of the ROS 2 stack do not import Ultralytics.
+- **Datasets** (HIT-UAV, HERIDAL) keep their own licences; check them before commercial use.

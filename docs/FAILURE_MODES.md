@@ -8,7 +8,7 @@ Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
 | 1 | Link lost unexpectedly | Operator blind, robot may wander | Failsafe after 30–45 s → drive to nearest covered cell; goal blocked for 10 min | Real radios fade gradually; model is binary at the threshold (H) |
 | 2 | Person found while out of link | Report delayed | REPORT state drives back into coverage before anything else | Robot could also drop a relay at the casualty (future) (M) |
 | 3 | Relays used up early | Deep areas unreachable with live video | Planner discounts relay use; store-and-forward fallback | Relay pick-up/reuse not modelled (M) |
-| 4 | Wrong last-known point | Search starts in the wrong place | Bayesian updates move belief; tested at ~95 m offset (success 56–60 %) | Larger errors untested; no re-planning from new witness info (H) |
+| 4 | Wrong last-known point | Search starts in the wrong place | Bayesian updates move belief; tested at ~95 m offset (success 67–68 %) | Larger errors untested; no re-planning from new witness info (H) |
 | 5 | Drone false cue | Robot pulled to the wrong place | Cue fused with 0.6 reliability, not treated as truth | Reliability not learned from data (M) |
 | 6 | Missed detection in canopy | Casualty passed by | Canopy term lowers POD and the map keeps residual probability | Real thermal performance under spruce unknown (H) |
 | 7 | Battery loss in cold | Robot stranded | 25 % derate, return-to-home reserve × 1.3 | No battery heating model (M) |
@@ -21,10 +21,15 @@ Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
 - **All numbers are simulation.** No hardware test has been done.
 - **Parameters are placeholders**, chosen for the right order of magnitude: lost-person distances, radio budget and
   attenuation, detection range, energy use.
-- **One terrain per scenario.** Results vary with the map; the experiment fixes the map and varies casualty
-  location and detection luck.
-- **Weights were tuned** on seeds 100–159 and evaluated on seeds 1000–1199. Tuning was light (a handful of
-  settings), and the ablation was run with the same care so the comparison is fair.
+- **Terrain matters more than policy.** The benchmark runs on eight generated terrains per scenario; on single
+  terrains the same policy's success ranges from 48 % to 92 % in the forest. All terrains of a scenario still share
+  its fixed features (ridge, lake, trail, command post), so this is variation within one kind of site.
+- **Tuning-terrain bias (found in the November 2026 audit).** Weights were tuned on terrain 0 with casualty seeds
+  100–159, and results were first reported on that same terrain. There the reactive baseline does badly, which
+  made link-aware planning look like a 40 % → 60 % gain. On held-out terrains the success rates are equal and the
+  benefit is the relay saving. The benchmark now holds out terrains as well as casualty seeds.
+- **Confidence intervals** treat runs as independent although 25 runs share each terrain, so they are too narrow
+  for claims about new terrains; the summary shows the per-terrain range next to them.
 - **3D stack:** CI runs the full mission in Gazebo Harmonic with Nav2 and requires a delivered casualty report.
   That run uses ground-truth localisation; with `localization:=slam`, slam_toolbox can drift in the wide,
   feature-poor yard, and that mode is not gated in CI. Gazebo's lidar sees *visual* geometry, so decorative

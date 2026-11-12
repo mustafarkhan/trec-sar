@@ -4,7 +4,8 @@ trecsar scenarios
 trecsar run --scenario forest_winter --planner trecsar --seed 1002 --plot mission.png
 trecsar compare --scenario tunnel --seed 1003 --plot compare.png
 trecsar run --site examples/sites/campus/site.yaml
-trecsar bench --runs 200 --out results
+trecsar bench --runs 200 --out results                     # held-out terrains
+trecsar bench --runs 200 --reference --out results/reference_terrain
 """
 
 from __future__ import annotations
@@ -98,9 +99,10 @@ def cmd_compare(a):
 
 
 def cmd_bench(a):
-    from .bench import run_benchmark
+    from .bench import HELD_OUT_TERRAINS, REFERENCE_TERRAIN, run_benchmark
 
-    run_benchmark(a.runs, a.workers, a.out, a.variants.split(",") if a.variants else None)
+    terrains = (REFERENCE_TERRAIN,) if a.reference else HELD_OUT_TERRAINS
+    run_benchmark(a.runs, a.workers, a.out, a.variants.split(",") if a.variants else None, terrains)
     print((Path(a.out) / "summary.md").read_text())
     return 0
 
@@ -136,6 +138,11 @@ def main(argv=None) -> int:
     p.add_argument("--workers", type=int, default=2)
     p.add_argument("--out", default="results")
     p.add_argument("--variants", help="comma-separated subset of benchmark variants")
+    p.add_argument(
+        "--reference",
+        action="store_true",
+        help="run on the reference terrain the planner was tuned on instead of the held-out generated terrains",
+    )
     p.set_defaults(fn=cmd_bench)
 
     a = ap.parse_args(argv)

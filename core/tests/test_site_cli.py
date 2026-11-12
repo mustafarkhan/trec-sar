@@ -80,3 +80,52 @@ def test_benchmark_api_writes_results(tmp_path):
     summary = run_benchmark(runs=2, workers=1, out=tmp_path, variant_keys=["hazmat_industrial"])
     assert (tmp_path / "results.csv").exists() and (tmp_path / "summary.md").exists()
     assert {s["planner"] for s in summary} == {"lawnmower", "greedy_bayes", "greedy_sf", "trecsar", "trecsar_cal"}
+
+
+def test_benchmark_holds_out_terrains_by_default(tmp_path):
+    import csv
+
+    from trecsar_core.bench import HELD_OUT_TERRAINS, REFERENCE_TERRAIN
+
+    assert REFERENCE_TERRAIN not in HELD_OUT_TERRAINS
+    summary = run_benchmark(runs=4, workers=1, out=tmp_path, variant_keys=["hazmat_industrial"], terrains=(1, 2))
+    with open(tmp_path / "results.csv") as f:
+        rows = list(csv.DictReader(f))
+    assert {r["terrain"] for r in rows} == {"1", "2"}
+    assert all(s["terrains"] == 2 and s["terrain_lo"] <= s["success"] <= s["terrain_hi"] for s in summary)
+    assert "Per-terrain range" in (tmp_path / "summary.md").read_text()
+
+
+def test_generated_terrains_differ_but_keep_the_scenario_valid():
+    a, b = build("forest_winter", seed=0).terrain, build("forest_winter", seed=3).terrain
+    assert a.base == b.base and a.lkp == b.lkp
+    assert (a.cost != b.cost).any()
+    b.validate()
+
+
+def _campus_variant(tmp_path, classes_yaml: str) -> Path:
+    import shutil
+
+    shutil.copy(CAMPUS.parent / "campus.png", tmp_path / "campus.png")
+    text = CAMPUS.read_text().replace("narrative:", f"classes:\n{classes_yaml}\nnarrative:")
+    (tmp_path / "site.yaml").write_text(text)
+    return tmp_path / "site.yaml"
+
+
+def test_overriding_one_field_of_a_class_keeps_its_other_fields(tmp_path):
+    base = build(str(CAMPUS)).terrain
+    t = build(str(_campus_variant(tmp_path, "  forest: {rf_db_per_m: 0.08}"))).terrain
+    forest = base.labels["forest"]
+    assert np.array_equal(t.passable, base.passable)  # forest must not turn into a no-go area
+    assert np.allclose(t.cost[forest], CLASSES["forest"]["cost"])
+    assert np.allclose(t.rf_db_per_m[forest], 0.08)
+
+
+def test_class_can_be_made_impassable_explicitly(tmp_path):
+    t = build(str(_campus_variant(tmp_path, "  forest: {cost: impassable}"))).terrain
+    assert not t.passable[build(str(CAMPUS)).terrain.labels["forest"]].any()
+
+
+def test_unknown_class_key_is_reported(tmp_path):
+    with pytest.raises(ValueError, match="unknown keys"):
+        build(str(_campus_variant(tmp_path, "  forest: {rf_loss: 0.08}")))

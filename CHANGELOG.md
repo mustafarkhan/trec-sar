@@ -16,10 +16,23 @@ All notable changes to this project are documented here. The format follows
   last-known-point mismatches.
 
 ### Changed
+- **Benchmark now holds out terrains as well as casualty seeds.** `trecsar bench` runs 25 casualties on each of 8
+  freshly generated terrains per scenario; `--reference` runs the tuning terrain (terrain 0), whose results move to
+  `results/reference_terrain/`. Summaries show the per-terrain range next to the confidence interval.
+- **Headline corrected.** On held-out terrains the probability-driven policies reach the same forest success
+  (73–74 %); TREC-SAR's benefit is the relay saving (half in the forest and chemical site, about 70 % fewer in the
+  tunnel) and robustness with one relay or a wrong radio model. The earlier "about 40 % to 60 %" forest gain was
+  specific to the tuning terrain. README, research notes and failure modes are rewritten accordingly.
+- CI: least-privilege token permissions, cancelled superseded PR runs, gitleaks download verified by checksum.
+- Licence section states that Ultralytics YOLO11 and the bundled detector weights are AGPL-3.0, not MIT.
 - Replays draw the coverage the radios really achieve and count failsafe trips in the status line.
 - TREC is described in academic and industrial terms (Government of Pakistan, NUST College of E&ME).
 
 ### Fixed
+- Custom sites: overriding one field of a terrain class in `site.yaml` (for example only `rf_db_per_m`) silently
+  made the whole class impassable. Missing fields now keep the base class's values; unknown keys are rejected.
+- README example output listed four planners; `trecsar compare` prints five.
+- Wrong venue for Malmirchegini & Mostofi in the calibration module's docstring.
 - 3D run distance in the README and v0.2.0 notes: the robot drove more than 450 m (lower bound from the
   once-a-minute ground-truth track), not about 330 m.
 

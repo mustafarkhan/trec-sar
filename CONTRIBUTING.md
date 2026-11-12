@@ -26,7 +26,7 @@ pytest -q core/tests
 1. **Tests with every change.** New behaviour needs a test in `core/tests/`. CI runs on Python 3.10–3.13 plus a
    ROS 2 Jazzy build and an end-to-end headless mission.
 2. **Results stay honest.** If a change affects planner behaviour, re-run `trecsar bench --runs 200` and update
-   `results/` and the README tables in the same pull request. Tune only on seeds 100–159; report on 1000+.
+   `results/` and the README tables in the same pull request. Tune only on terrain 0 with seeds 100–159; report on the held-out terrains and seeds 1000+ (`trecsar bench`).
 3. **Say what is assumed.** New models document their parameters and where to calibrate them
    (see `docs/RESEARCH.md`).
 4. **Civilian scope.** This project is for search and rescue. Weapon or targeting features will not be accepted.

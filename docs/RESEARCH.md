@@ -26,19 +26,29 @@ TREC-SAR stands on established work. This page says what is borrowed, what is ne
 3. **Time-to-report as the outcome metric**, with an ablation that separates the two ideas above.
 4. **Online radio calibration feeding the search planner**: signal-strength readings update the path-loss exponent
    and per-terrain attenuation during the mission, and relay placement and link-loss windows use the updated model.
-   Under a radio 1.8× worse than planned this cuts failsafe trips 3.4× and median time-to-report from 54 to 37 min.
+   Under a radio 1.8× worse than planned this cuts failsafe trips 3.7× and median time-to-report from 47 to 36 min
+   (held-out terrains).
 5. **An open, reproducible civilian benchmark**: three operational scenarios plus stress variants (fewer relays,
-   wrong last-known point, wrong radio model), five policies, held-out seeds, confidence intervals, and a 3D
-   Gazebo world generated from the same terrain in which the full mission is run in CI.
+   wrong last-known point, wrong radio model), five policies, held-out terrains and casualty seeds, confidence
+   intervals, and a 3D Gazebo world generated from the reference terrain in which the full mission is run in CI.
 
 Communication-aware planning is an active research area in multi-robot exploration; TREC-SAR does not claim to be
 the first to consider radio in planning. The contribution is the specific SAR combination and the open benchmark.
 
-## Key finding from the ablation
+## Key findings from the ablation (held-out terrains)
 
-Most of the success gain over link-unaware policies comes from **planning the link loss**. Probability-driven relay
-placement then delivers the same success with about half the relays (forest) or about 90 % fewer (tunnel), at the
-cost of more time without live video. That trade-off is the honest headline.
+- With three relays and a correct radio model, all probability-driven policies reach the same forest success
+  (73–74 %). **Probability-driven relay placement then delivers that success with half the relays** (forest,
+  chemical site) **or about 70 % fewer** (tunnel), at the cost of more time without live video.
+- **Planning the link loss** separates the policies only when the reactive habit fails: one relay (62 % against
+  73–74 %) or a radio worse than planned (60 % against 68–70 %).
+- An uncalibrated TREC-SAR under a wrong radio model is the worst probability-driven policy on time; calibration
+  repairs it.
+
+Up to version 0.2 this page reported a larger effect ("most of the success gain comes from planning the link
+loss", about 40 % to 60 %). That was measured on the single terrain used for tuning, where the reactive baseline
+happens to do badly. It did not generalise to freshly generated terrains and has been withdrawn; the old numbers
+are in `results/reference_terrain/`.
 
 ## Assumptions that would change the answer
 
