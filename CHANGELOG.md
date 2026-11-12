@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] — 2026-11-12
 
 ### Added
 - **European radio profiles and a two-link mission** (`docs/EU_RADIO.md`). `trecsar_core.link.PROFILES` holds 868 MHz
@@ -16,7 +16,10 @@ All notable changes to this project are documented here. The format follows
   GeoJSON. Sites can be georeferenced in ETRS89 (`georef:` in `site.yaml`); reports carry ETRS-TM35FIN or
   ETRS89 / UTM grid coordinates from a dependency-free transverse Mercator implementation checked against PROJ.
   The ROS 2 report JSON carries the same coordinates.
-- Three two-link benchmark variants; results record the report channel, time to the position alert, and time
+- **Two European scenarios**, run without retuning: `urban_collapse` (block after an earthquake) and `road_tunnel`
+  (fire in a 1 km twin-bore tunnel laid out to Directive 2004/54/EC). Mission plots stack panels for long sites
+  and shade rubble.
+- Four two-link benchmark variants; results record the report channel, time to the position alert, and time
   without any supervision. `MissionCore` and the link simulator support the second link
   (`/link/report_margin_db`).
 - CI `hygiene` job: `scripts/check_repo_hygiene.py` checks commit authorship, rejects co-author or session

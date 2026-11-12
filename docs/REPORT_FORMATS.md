@@ -15,7 +15,7 @@ from trecsar_core.report import casualty_report, to_cap, to_geojson
 
 world = World(build("forest_winter"))
 result = run(world, "trecsar", 1011, record=True)
-report = casualty_report(world, result)                 # None if the mission did not report
+report = casualty_report(world, result)  # None if the mission did not report
 xml = to_cap(report, mission_start=datetime(2026, 1, 15, 16, 40, tzinfo=timezone.utc))
 geo = to_geojson(world, result)
 ```
@@ -58,7 +58,7 @@ Finland, **ETRS89 / UTM (EPSG:258xx)** elsewhere. The projection is implemented 
 a millimetre at the test points. Local metres are converted with a tangent-plane approximation: about 0.15 m of
 error 1 km from the anchor, so it suits sites of a few kilometres.
 
-The three built-in scenarios are fictional. Their anchors exist only to make the outputs well-formed, and every
+The built-in scenarios are fictional. Their anchors exist only to make the outputs well-formed, and every
 report from them is flagged `illustrative_position`.
 
 ## Not covered

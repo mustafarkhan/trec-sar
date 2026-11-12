@@ -22,6 +22,8 @@ _ANCHOR = {
     "forest_winter": Georef(62.0, 26.0, illustrative=True),  # central Finland
     "tunnel": Georef(46.5, 8.6, illustrative=True),  # central Alps
     "hazmat_industrial": Georef(51.9, 4.4, illustrative=True),  # Rhine delta
+    "urban_collapse": Georef(42.4, 13.4, illustrative=True),  # central Apennines
+    "road_tunnel": Georef(47.2, 11.4, illustrative=True),  # eastern Alps
 }
 
 
@@ -319,10 +321,179 @@ def hazmat_industrial(seed: int = 0, relays: int = 2) -> Scenario:
     )
 
 
+# --------------------------------------------------------------------------------
+# 4. Urban block after an earthquake — people trapped at collapsed buildings
+# --------------------------------------------------------------------------------
+def urban_collapse(seed: int = 0, relays: int = 3) -> Scenario:
+    rng = np.random.default_rng(seed)
+    N, res = 80, 4.0
+    shape = (N, N)
+    cost = np.full(shape, 1.0)  # streets and squares
+    rf = np.zeros(shape)
+    canopy = np.zeros(shape)
+    aff = np.full(shape, 0.3)
+    labels = {}
+
+    # street grid: blocks of buildings separated by streets 2 cells (8 m) wide
+    bld = np.zeros(shape, bool)
+    edges = [4, 22, 40, 58, 76]
+    blocks = [
+        (r0 + 2, r1 - 1, c0 + 2, c1 - 1)
+        for r0, r1 in zip(edges[:-1], edges[1:])
+        for c0, c1 in zip(edges[:-1], edges[1:])
+    ]
+    for r0, r1, c0, c1 in blocks:
+        bld[r0:r1, c0:c1] = True
+    # inner courtyards
+    for r0, r1, c0, c1 in blocks:
+        if rng.random() < 0.6:
+            bld[r0 + 5 : r1 - 5, c0 + 5 : c1 - 5] = False
+
+    # two or three blocks collapsed (never the one next to the command post): rubble spills into the streets
+    idx = rng.choice(np.arange(1, len(blocks)), size=int(rng.integers(2, 4)), replace=False)
+    rubble = np.zeros(shape, bool)
+    for k in idx:
+        r0, r1, c0, c1 = blocks[k]
+        rubble |= _ellipse(shape, ((r0 + r1) / 2, (c0 + c1) / 2), ((r1 - r0) / 2 + 2.5, (c1 - c0) / 2 + 2.5))
+    rubble &= _noise(rng, shape, 1.5) > 0.25  # ragged edge, gaps
+    bld &= ~rubble
+    cost[bld], rf[bld], aff[bld] = np.inf, 1.4, 0.0
+    labels["standing buildings"] = bld
+    # rubble: slow, blocks sight and radio, and is where people are
+    cost[rubble], rf[rubble], canopy[rubble], aff[rubble] = 3.5, 0.5, 0.5, 3.0
+    labels["collapsed buildings (rubble)"] = rubble
+    debris = (_noise(rng, shape, 2) > 0.72) & ~bld & ~rubble
+    cost[debris], rf[debris], canopy[debris], aff[debris] = 2.0, 0.1, 0.2, 0.6
+    labels["debris on streets"] = debris
+
+    base = (78, 2)
+    cost[76:, :4] = 1.0  # assembly area kept clear
+    r0, r1, c0, c1 = blocks[int(idx[0])]
+    centre = (int((r0 + r1) / 2), int((c0 + c1) / 2))
+    cand = np.argwhere(rubble)
+    lkp = tuple(int(v) for v in cand[np.argmin(((cand - centre) ** 2).sum(axis=1))])
+    t = Terrain(
+        "urban_collapse",
+        res,
+        cost,
+        rf,
+        canopy,
+        aff,
+        base=base,
+        lkp=lkp,
+        labels=labels,
+        georef=_ANCHOR["urban_collapse"],
+    )
+    t.validate()
+    return Scenario(
+        key="urban_collapse",
+        title="Urban block after an earthquake — people at collapsed buildings",
+        terrain=t,
+        person=LostPersonProfile("trapped or injured resident", median_distance_m=45.0, sigma_log=0.8),
+        mission=MissionConfig(
+            time_limit_s=45 * 60,
+            relays=relays,
+            sense_radius_m=24.0,
+            detect_r0_m=14.0,
+            aerial_cue_time_s=120.0,
+            aerial_cue_sigma_m=20.0,
+            failsafe_s=30.0,
+        ),
+        narrative=(
+            "A shallow earthquake has brought down several apartment buildings. Residents were last "
+            "heard at the largest collapse. Aftershocks keep teams off the rubble until an engineer "
+            "clears it; reinforced concrete shadows the radio. The UGV searches the rubble surface "
+            "and the streets around it while the drone looks from above."
+        ),
+    )
+
+
+# --------------------------------------------------------------------------------
+# 5. Twin-bore road tunnel — fire, motorist missing in smoke
+# --------------------------------------------------------------------------------
+def road_tunnel(seed: int = 0, relays: int = 4) -> Scenario:
+    rng = np.random.default_rng(seed)
+    rows, cols, res = 24, 250, 4.0  # 1 km of tunnel
+    shape = (rows, cols)
+    cost = np.full(shape, np.inf)
+    rf = np.full(shape, 6.0)  # rock
+    canopy = np.zeros(shape)
+    aff = np.zeros(shape)
+    labels = {}
+
+    bore_a = np.zeros(shape, bool)  # incident bore
+    bore_b = np.zeros(shape, bool)  # second bore, traffic stopped: the safe route for people and robot
+    bore_a[6:9, :] = True
+    bore_b[15:18, :] = True
+    # cross-passages: Directive 2004/54/EC allows at most 500 m between emergency exits; here every ~250-330 m
+    xs, c = [], int(rng.integers(40, 60))
+    while c < cols - 20:
+        xs.append(c)
+        c += int(rng.integers(62, 83))
+    cross = np.zeros(shape, bool)
+    for c in xs:
+        cross[9:15, c] = True
+    road = bore_a | bore_b | cross
+    cost[road], rf[road], aff[road] = 1.2, 0.02, 0.6
+    labels["tunnel bores"] = bore_a | bore_b
+    aff[cross] = 6.0  # people in smoke head for the emergency exits
+    for c in xs:  # and gather in the second bore just beyond them
+        aff[15:18, max(c - 3, 0) : c + 4] = 3.0
+    labels["cross-passages (emergency exits)"] = cross
+
+    fire_c = int(rng.integers(110, 190))
+    smoke = np.zeros(shape, bool)
+    smoke[6:9, max(fire_c - 45, 0) : min(fire_c + 30, cols)] = True  # ventilation pushes smoke one way
+    canopy[smoke] = 0.6  # thermal camera sees through smoke only partly
+    cost[smoke] = 1.6
+    aff[smoke & ~cross] = 1.5
+    labels["smoke"] = smoke
+    # stopped vehicles in the incident bore: obstacles that always leave one lane free
+    veh = np.zeros(shape, bool)
+    for c in rng.choice(np.arange(20, cols - 5), size=28, replace=False):
+        veh[int(rng.choice([6, 8])), c : c + 2] = True
+    veh[:, fire_c - 1 : fire_c + 2] &= False
+    veh &= ~cross
+    for c in xs:
+        veh[6:9, c] = False
+    cost[veh], rf[veh], aff[veh] = np.inf, 0.6, 0.0
+    labels["stopped vehicles"] = veh
+
+    base = (16, 1)  # portal of the second bore
+    lkp = (7, fire_c)
+    t = Terrain(
+        "road_tunnel", res, cost, rf, canopy, aff, base=base, lkp=lkp, labels=labels, georef=_ANCHOR["road_tunnel"]
+    )
+    t.validate()
+    return Scenario(
+        key="road_tunnel",
+        title="Twin-bore road tunnel fire — motorist missing in smoke",
+        terrain=t,
+        person=LostPersonProfile("motorist evacuating on foot", median_distance_m=110.0, sigma_log=0.9),
+        mission=MissionConfig(
+            time_limit_s=45 * 60,
+            relays=relays,
+            sense_radius_m=24.0,
+            detect_r0_m=14.0,
+            aerial_cue_time_s=None,
+            failsafe_s=30.0,
+            report_rf_scale=7.9,  # waveguide loss at 868 MHz, as in the mine tunnel
+        ),
+        narrative=(
+            "A lorry burns deep inside a one-kilometre twin-bore road tunnel. Most motorists walked out through "
+            "the cross-passages; one is unaccounted for. Smoke fills the incident bore and the "
+            "fire service will not send crews past it yet. The UGV enters through the second bore "
+            "and has to carry its radio link a kilometre underground."
+        ),
+    )
+
+
 SCENARIOS = {
     "forest_winter": forest_winter,
     "tunnel": tunnel,
     "hazmat_industrial": hazmat_industrial,
+    "urban_collapse": urban_collapse,
+    "road_tunnel": road_tunnel,
 }
 
 

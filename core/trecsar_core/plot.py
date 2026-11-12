@@ -65,12 +65,19 @@ def plot_runs(world: World, results: list[RunResult], path: str | Path, title: s
 
     t = world.sc.terrain
     n = len(results)
-    fig, axes = plt.subplots(1, n, figsize=(5.6 * n, 6.0), facecolor=SURFACE, squeeze=False)
-    for ax, r in zip(axes[0], results):
+    wide = t.shape[1] > 3 * t.shape[0]  # long sites (road tunnel): stack the panels instead
+    if wide:
+        fig, axes = plt.subplots(n, 1, figsize=(14.0, 0.8 + 2.3 * n), facecolor=SURFACE, squeeze=False)
+    else:
+        fig, axes = plt.subplots(1, n, figsize=(5.6 * n, 6.0), facecolor=SURFACE, squeeze=False)
+    for ax, r in zip(axes.ravel(), results):
         ax.set_facecolor(SURFACE)
         ax.imshow(terrain_rgb(t), interpolation="nearest")
         prior = world.prior / world.prior.max()
         ax.imshow(np.ma.masked_less(prior, 0.3), cmap=ListedColormap(["#7d4fd6"]), alpha=0.22, interpolation="nearest")
+        rubble = t.labels.get("collapsed buildings (rubble)")
+        if rubble is not None:
+            ax.contourf(rubble, levels=[0.5, 1.5], colors=["#9a6b3a"], alpha=0.28)
         nodes = [t.base] + [t.rc(c) for c in r.relays]
         cov = world.link.coverage(nodes) >= world.sc.mission.link_threshold_db
         ax.contour(cov, levels=[0.5], colors=[INK2], linewidths=1.0, linestyles="--")
@@ -100,7 +107,9 @@ def plot_runs(world: World, results: list[RunResult], path: str | Path, title: s
         color=INK,
     )
     legend = (
-        "Grey = impassable · purple = highest initial probability · dashed = final radio coverage · "
+        "Grey = impassable · purple = highest initial probability"
+        + (" · brown = rubble" if "collapsed buildings (rubble)" in t.labels else "")
+        + " · dashed = final radio coverage · "
         "▲ relay · ■ command post · X casualty"
     )
     if n == 1:

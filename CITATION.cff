@@ -3,13 +3,13 @@ message: "If you use TREC-SAR in research, please cite it as below."
 title: "TREC-SAR: link-aware search planning for rescue ground robots"
 abstract: >
   Open-source search planner and simulation stack for a tracked rescue UGV working with a drone. It plans search
-  goals, radio-relay placement and time-bounded link-loss windows from a Bayesian probability map, and is
-  evaluated on time until the command post receives the casualty report.
+  goals, radio-relay placement and time-bounded link-loss windows from a Bayesian probability map, within
+  European radio limits, and is evaluated on time until the command post receives the casualty report.
 authors:
   - family-names: "Khan"
     given-names: "Mustafa R."
-version: 0.2.0
-date-released: 2026-10-12
+version: 0.3.0
+date-released: 2026-11-12
 license: MIT
 repository-code: "https://github.com/mustafarkhan/trec-sar"
 keywords:

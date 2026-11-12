@@ -38,6 +38,13 @@ Severity: H = could cost the casualty, M = delays the mission, L = nuisance.
   example behind the granite ridge) stay at the prior value. Readings are treated as independent, which ignores
   spatially correlated shadowing, so the model can be overconfident.
 
+- **New scenarios (0.3)** are procedural like the others. The earthquake block has no voids, aftershocks or dust;
+  the road tunnel has no heat model and assumes the robot can pass between stopped vehicles. The planner was not
+  retuned for them, which is a fair test of transfer but also means their numbers could improve or get worse with
+  site-specific tuning.
+- **Two-link missions** assume relay nodes repeat both bands and treat narrowband telemetry as adequate
+  supervision; see `docs/EU_RADIO.md` for the list of what the airtime model leaves out.
+
 ## Ethics and dual use
 
 TREC-SAR is designed for civilian search and rescue. The original TREC platform carried mine-detection

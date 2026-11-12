@@ -70,9 +70,12 @@ def load():
 CORE = ["forest_winter", "forest_1relay", "forest_wrong_lkp", "forest_radio_worse", "tunnel", "hazmat_industrial"]
 
 
-def success_and_relays(rows):
-    vs = {k: v for k, v in variants().items() if k in CORE}
-    fig, axes = plt.subplots(2, len(vs), figsize=(20, 6.8), sharey="row")
+EUROPE = ["urban_collapse", "road_tunnel", "forest_eu868_500mw", "urban_eu868_500mw", "tunnel_eu868_500mw"]
+
+
+def success_and_relays(rows, keys=CORE, name="success_and_relays.png", title="Success and relay use"):
+    vs = {k: v for k, v in variants().items() if k in keys}
+    fig, axes = plt.subplots(2, len(vs), figsize=(3.4 * len(vs), 6.8), sharey="row", squeeze=False)
     order = list(reversed(PLANNERS))  # TREC-SAR on top
     for j, (vkey, (vtitle, _)) in enumerate(vs.items()):
         for i, metric in enumerate(("success", "relays_used")):
@@ -103,9 +106,9 @@ def success_and_relays(rows):
                 ax.set_xlim(0, 3.6)
         axes[0, 0].set_ylabel("Casualty reported\nwithin time limit", fontsize=9)
         axes[1, 0].set_ylabel("Relays used\n(mean per mission)", fontsize=9)
-    fig.suptitle("Success and relay use — 200 held-out runs per bar", x=0.01, ha="left", fontsize=13, fontweight="bold")
+    fig.suptitle(f"{title} — 200 held-out runs per bar", x=0.01, ha="left", fontsize=13, fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(OUT / "success_and_relays.png", dpi=150)
+    fig.savefig(OUT / name, dpi=150)
     plt.close(fig)
 
 
@@ -219,7 +222,13 @@ def pick_seed(key, lo=1000, hi=1200):
 def main():
     rows = load()
     success_and_relays(rows)
+    success_and_relays(rows, EUROPE, "success_and_relays_europe.png", "European scenarios and the 868 MHz report link")
     time_curves(rows)
+    from trecsar_core.plot import plot_runs
+
+    for key, seed in (("urban_collapse", 1004), ("road_tunnel", 1004)):
+        w = World(build(key))
+        plot_runs(w, [run(w, p, seed, record=True) for p in ("greedy_bayes", "trecsar")], OUT / f"example_{key}.png")
     for key in ["forest_winter", "tunnel", "hazmat_industrial"]:
         s = pick_seed(key)
         scenario_map(key, s)

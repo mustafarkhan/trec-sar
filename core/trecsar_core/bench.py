@@ -43,6 +43,8 @@ def variants():
         ),
         "tunnel": ("Tunnel after rock fall", dict(key="tunnel")),
         "hazmat_industrial": ("Industrial chemical release", dict(key="hazmat_industrial")),
+        "urban_collapse": ("Urban block after an earthquake", dict(key="urban_collapse")),
+        "road_tunnel": ("Twin-bore road tunnel fire (1 km)", dict(key="road_tunnel")),
         # European two-link radio: 2.4 GHz video plus a duty-cycle-limited 868 MHz telemetry/report link
         "forest_eu868_500mw": (
             "Forest + 868 MHz report link (500 mW, 10 % duty cycle)",
@@ -51,6 +53,10 @@ def variants():
         "forest_eu868_25mw": (
             "Forest + 868 MHz report link (25 mW, 1 % duty cycle)",
             dict(key="forest_winter", report="eu868_25mw"),
+        ),
+        "urban_eu868_500mw": (
+            "Urban earthquake + 868 MHz report link (500 mW, 10 % duty cycle)",
+            dict(key="urban_collapse", report="eu868_500mw"),
         ),
         "tunnel_eu868_500mw": (
             "Tunnel + 868 MHz report link (500 mW, 10 % duty cycle)",

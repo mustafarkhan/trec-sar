@@ -58,7 +58,7 @@ plans *around* it instead of being surprised by it.
 | Radio | log-distance path loss (n = 2.2) + per-metre terrain attenuation | site survey; ITU-R P.833 for vegetation |
 | Mobility / energy | terrain cost multiplier; idle + speed-proportional draw | robot logs |
 
-## Why three scenarios
+## Why these scenarios
 
 - **Forest, winter night.** Long distances, canopy that blinds the drone, radio absorbed by wet spruce. The scenario
   where link planning matters most.
@@ -66,3 +66,10 @@ plans *around* it instead of being surprised by it.
   link loss are the only way to search.
 - **Industrial chemical release.** Short distances, open yard with steel structures that shadow the link. A control
   case: probability-driven search already works well.
+
+Two further scenarios were added in 0.3 **without retuning the planner**, as a test of whether it transfers:
+
+- **Urban block after an earthquake.** Several probability hot spots (rubble piles) hidden from each other by
+  standing buildings.
+- **Twin-bore road tunnel fire.** One kilometre of straight tunnel laid out to the EU road-tunnel directive: the
+  link must be carried in a chain, and people gather at the cross-passages.

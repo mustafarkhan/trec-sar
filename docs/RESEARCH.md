@@ -28,7 +28,7 @@ TREC-SAR stands on established work. This page says what is borrowed, what is ne
    and per-terrain attenuation during the mission, and relay placement and link-loss windows use the updated model.
    Under a radio 1.8× worse than planned this cuts failsafe trips 3.7× and median time-to-report from 47 to 36 min
    (held-out terrains).
-5. **An open, reproducible civilian benchmark**: three operational scenarios plus stress variants (fewer relays,
+5. **An open, reproducible civilian benchmark**: five operational scenarios plus stress variants (fewer relays,
    wrong last-known point, wrong radio model), five policies, held-out terrains and casualty seeds, confidence
    intervals, and a 3D Gazebo world generated from the reference terrain in which the full mission is run in CI.
 

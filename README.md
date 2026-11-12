@@ -41,7 +41,8 @@ Mechanical Engineering, National University of Sciences and Technology (NUST), P
 
 ## Part 2 — TREC-SAR: the civilian successor (independent project, 2026)
 
-TREC-SAR is my independent, open-source redesign of TREC for search and rescue in Europe. It is **not** a government
+TREC-SAR is my independent, open-source redesign of TREC for search and rescue in Europe: it plans within
+European radio limits, runs European incident scenarios, and reports in formats European command systems read. It is **not** a government
 project. All results below are from simulation.
 
 It answers one operational question:
@@ -107,10 +108,10 @@ Full tables with 95 % confidence intervals and the per-terrain range: [`results/
 
 ![Time to report](results/time_to_report.png)
 
-### Online radio calibration (new in 0.2)
+### Online radio calibration
 
 Every planner above trusts a radio model whose numbers are guesses. On a real site they will be wrong — wet snow
-on spruce, a steel structure, a different antenna. TREC-SAR 0.2 **learns the site's radio while it searches**: every
+on spruce, a steel structure, a different antenna. TREC-SAR **learns the site's radio while it searches**: every
 signal-strength reading the robot already receives is one equation of the link model, and a closed-form Bayesian
 regression (prior = the planning numbers) updates the path-loss exponent and the attenuation of every terrain class
 ([`core/trecsar_core/calibrate.py`](core/trecsar_core/calibrate.py)). Coverage predictions, relay placement and
@@ -154,6 +155,23 @@ but nobody is found sooner and the operator is without live video for about 17 m
 changes nothing: rock blocks both bands, and planned relays remain necessary (TREC-SAR 91 % with 0.8 relays
 against 86–88 % with 2.6). Limits, assumptions and sources: [`docs/EU_RADIO.md`](docs/EU_RADIO.md).
 
+### European scenarios (new in 0.3)
+
+Two missions built on European practice, run **without retuning the planner**:
+an urban block after an earthquake (several rubble piles hidden from each other by standing buildings), and a
+fire in a one-kilometre twin-bore road tunnel laid out to Directive 2004/54/EC (cross-passages every 250–330 m).
+
+![European scenarios](results/success_and_relays_europe.png)
+
+| 200 held-out missions on 8 terrains | Greedy + reactive relays | Greedy + planned link loss *(ablation)* | **TREC-SAR** | Relays used (greedy → TREC-SAR) |
+|---|---|---|---|---|
+| Urban block after an earthquake | 94 % | 100 % | **99 %** | 2.2 → **0.7** |
+| Twin-bore road tunnel fire | 94 % | 99 % | **98 %** | 2.7 → **0.8** |
+
+The pattern from the original scenarios carries over: planning the link loss removes the failures of the reactive
+habit (94 % → 98–100 %, intervals separated in the urban block), and probability-driven placement uses about a
+third of the relays. Stories and timelines: [`docs/SCENARIOS.md`](docs/SCENARIOS.md).
+
 ### Reports a command system can read (new in 0.3)
 
 `trecsar run --cap report.xml --geojson mission.geojson` writes the casualty report as a **CAP 1.2** alert (the
@@ -186,7 +204,7 @@ Requires Python 3.10+. Works on Linux, macOS and Windows.
 git clone https://github.com/mustafarkhan/trec-sar.git && cd trec-sar
 pip install -e "core[viz]"
 
-trecsar scenarios                                           # list built-in scenarios
+trecsar scenarios                                           # list the five built-in scenarios
 trecsar run --scenario forest_winter --seed 1002 --events   # one mission, with its event log
 trecsar compare --scenario tunnel --seed 1003 --plot compare.png   # all planners, same mission
 trecsar bench --runs 200                                    # the full held-out benchmark (~10 min on 2 cores)
@@ -252,7 +270,7 @@ ros2 launch trecsar_bringup bringup.launch.py scenario:=forest_winter planner:=t
 
 | | |
 |---|---|
-| Tests | 77 unit, behaviour, calibration, radio-profile, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
+| Tests | 93 unit, behaviour, calibration, radio-profile, report-format, world, CLI and repository-hygiene tests on Python 3.10–3.13, with coverage |
 | ROS 2 | All four packages built in CI on ROS 2 Jazzy; end-to-end headless mission must deliver a casualty report |
 | 3D | Gazebo Harmonic + Nav2 mission in CI must find the casualty and deliver the report |
 | Perception | Thermal person detector trained and evaluated in CI on HIT-UAV (held-out test mAP@0.5 0.90) |
@@ -276,7 +294,8 @@ ros2_ws/src/     trecsar_description  URDF/xacro of the tracked UGV (TREC dimens
                                       headless fake robot
                  trecsar_bringup      launch files: 3D (SLAM + Nav2 + RViz) and headless
 perception/      HIT-UAV thermal person detector: CI training script, Colab notebook, trained weights
-docs/            concept, scenarios (CONOPS), research basis, European radio rules, failure modes, running guide
+docs/            concept, scenarios (CONOPS), research basis, European radio rules, report formats, failure modes,
+                 running guide
 docker/          ROS 2 Jazzy + Gazebo container
 ```
 
@@ -298,7 +317,7 @@ Guard's SAROPS), lost-person behaviour statistics (Koester), and relay "breadcru
 Subterranean Challenge. What TREC-SAR adds is the **combination**: relay placement and link-loss windows chosen from
 the *probability of finding the person*, with the radio model **calibrated online during the search** (methods
 from robot channel-estimation research), evaluated on time-to-report rather than time-to-detect, packaged as an
-open, reproducible benchmark for civilian SAR (forest, tunnel and hazmat). In that benchmark the combination saves
+open, reproducible benchmark for civilian SAR (forest, mine tunnel, hazmat, earthquake and road tunnel). In that benchmark the combination saves
 relays; it does not raise the success rate where relays are plentiful. I have not found this exact combination
 in open source, but I make no claim that nobody has done it. See [`docs/RESEARCH.md`](docs/RESEARCH.md).
 

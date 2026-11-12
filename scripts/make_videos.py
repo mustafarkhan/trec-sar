@@ -373,9 +373,9 @@ class ReplayPanel:
             self.banner.get_bbox_patch().set_facecolor(RED)
 
 
-def replay_scene(scenario, seed, planners, seconds, heading, caption, name, sub=None):
+def replay_scene(scenario, seed, planners, seconds, heading, caption, name, sub=None, terrain=0):
     def setup(fig, fmt):
-        w = variant_world(scenario) if scenario in variants() else World(build(scenario))
+        w = variant_world(scenario, terrain) if scenario in variants() else World(build(scenario))
         runs = [run(w, p, seed, record=True, frame_every_s=6.0) for p in planners]
         T = max(r.frames[-1].time_s for r in runs)
         v = fmt.vertical
@@ -430,7 +430,7 @@ def load_results():
 
 def results_scene(planners, seconds, name):
     agg = load_results()
-    variants = [("forest_winter", "Winter forest"), ("tunnel", "Tunnel"), ("hazmat_industrial", "Chemical release")]
+    variants = [("forest_winter", "Winter forest"), ("tunnel", "Mine tunnel"), ("urban_collapse", "Earthquake block")]
 
     def setup(fig, fmt):
         v = fmt.vertical
@@ -500,7 +500,7 @@ def results_scene(planners, seconds, name):
         fig.text(
             0.06,
             0.02,
-            "Simulation, held-out seeds. Labels show success and mean relays used per mission.",
+            "Simulation, 8 held-out terrains per scenario. Labels show success and mean relays used per mission.",
             fontsize=11 * fmt.scale,
             color=MUTED,
             va="bottom",
@@ -560,7 +560,7 @@ def calibration_scene(seconds, name="calibration"):
 
     def setup(fig, fmt):
         v = fmt.vertical
-        fig.text(0.08, 0.93, "NEW IN 0.2  ·  ONLINE RADIO CALIBRATION", fontsize=14 * fmt.scale, color=GOLD,
+        fig.text(0.08, 0.93, "ONLINE RADIO CALIBRATION", fontsize=14 * fmt.scale, color=GOLD,
                  weight="bold", va="top")  # fmt: skip
         head = fig.text(
             0.08,
@@ -604,13 +604,97 @@ def calibration_scene(seconds, name="calibration"):
             0.08,
             0.05,
             f"Forest, radio 1.8x worse than planned (wet snow on spruce)  ·  {a['n']} held-out simulated missions "
-            "per policy  ·  time counts failures as the 90 min limit  ·  success difference is within the "
+            "per policy on 8 terrains  ·  time counts failures as the 90 min limit  ·  success difference is within the "
             "95 % confidence intervals",
             fontsize=11 * fmt.scale,
             color=MUTED,
             va="bottom",
             wrap=True,
         )
+
+        def update(u):
+            for group, st in objs:
+                for o in group:
+                    o.set_alpha(appear(u, st))
+
+        return update
+
+    return Scene(seconds, setup, name)
+
+
+# ------------------------------------------------------------------ Europe ---------
+URBAN_TERRAIN, URBAN_SEED = 1, 1000  # a held-out terrain and a mission close to the scenario's medians
+
+
+def europe_scene(seconds, name="europe"):
+    """European radio limits and the 868 MHz report link, from results.csv."""
+    with open(ROOT / "results" / "results.csv") as fh:
+        rows = list(csv.DictReader(fh))
+
+    def stat(variant, planner):
+        rs = [r for r in rows if r["variant"] == variant and r["planner"] == planner]
+        return dict(
+            success=np.mean([int(r["success"]) for r in rs]),
+            relays=np.mean([int(r["relays_used"]) for r in rs]),
+            failsafe=np.mean([int(r["failsafe_events"]) for r in rs]),
+            novideo=np.mean([float(r["out_of_link_s"]) for r in rs]) / 60,
+        )
+
+    a, b = stat("forest_winter", "greedy_bayes"), stat("forest_eu868_500mw", "greedy_bayes")
+    ta, tb = stat("tunnel", "trecsar"), stat("tunnel_eu868_500mw", "trecsar")
+    metrics = [
+        ("Success", f"{a['success']:.0%}", f"{b['success']:.0%}"),
+        ("Relays used per mission", f"{a['relays']:.1f}", f"{b['relays']:.1f}"),
+        ("Failsafe trips per mission", f"{a['failsafe']:.1f}", f"{b['failsafe']:.1f}"),
+        ("Minutes without live video", f"{a['novideo']:.0f}", f"{b['novideo']:.0f}"),
+    ]
+
+    def setup(fig, fmt):
+        v = fmt.vertical
+        fig.text(
+            0.08, 0.93, "BUILT FOR EUROPEAN RADIO RULES", fontsize=14 * fmt.scale, color=BLUE, weight="bold", va="top"
+        )
+        head = fig.text(
+            0.08,
+            0.88,
+            "2.4 GHz video at 100 mW, plus an 868 MHz report link at its legal power and duty cycle.",
+            fontsize=(24 if v else 26) * fmt.scale,
+            weight="bold",
+            va="top",
+            wrap=True,
+        )
+        wrap_px = fig.get_figwidth() * fig.dpi * 0.84
+        head._get_wrap_line_width = lambda: wrap_px
+        y0, step = 0.58, 0.085
+        xa, xb = (0.60, 0.80) if v else (0.55, 0.75)
+        fig.text(xa, y0 + 0.05, "video only", fontsize=12 * fmt.scale, color=INK2, weight="bold")
+        fig.text(xb, y0 + 0.05, "+ 868 MHz", fontsize=12 * fmt.scale, color=BLUE, weight="bold")
+        objs = []
+        for i, (label, va_, vb_) in enumerate(metrics):
+            y = y0 - i * step
+            objs.append(
+                (
+                    [
+                        fig.text(0.08, y, label, fontsize=18 * fmt.scale, va="center"),
+                        fig.text(xa, y, va_, fontsize=22 * fmt.scale, weight="bold", va="center"),
+                        fig.text(xb, y, vb_, fontsize=22 * fmt.scale, color=BLUE, weight="bold", va="center"),
+                    ],
+                    0.08 + i * 0.1,
+                )
+            )
+        note = fig.text(
+            0.08,
+            0.05,
+            "Winter forest, reactive relays, 200 held-out missions each  ·  868 MHz: 500 mW, 10 % duty cycle (ERC/REC 70-03), "
+            "a thumbnail report takes 59 s on air  ·  underground the extra link changes nothing: "
+            f"TREC-SAR {ta['success']:.0%} with {ta['relays']:.1f} relays, {tb['success']:.0%} with it  ·  "
+            "reports export as CAP 1.2 and GeoJSON in ETRS89",
+            fontsize=11 * fmt.scale,
+            color=MUTED,
+            va="bottom",
+            wrap=True,
+        )
+        note._get_wrap_line_width = lambda: wrap_px
 
         def update(u):
             for group, st in objs:
@@ -854,8 +938,8 @@ def render(scenes, fmt, out: Path, stills_dir: Path | None = None):
 
 
 def readme_gif(out: Path, fps: int = 12, seconds: float = 11.0):
-    """README GIF: the winter-forest replay (link-unaware vs TREC-SAR) at 960x540."""
-    scene = [sc for sc in github_scenes() if sc.name == "replay_forest"][0]
+    """README GIF: the earthquake-block replay (reactive relays vs TREC-SAR) at 960x540."""
+    scene = [sc for sc in github_scenes() if sc.name == "replay_urban"][0]
     scene = Scene(seconds, scene.setup, scene.name)
     tmp = out.with_suffix(".tmp.mp4")
     render([scene], Fmt(960, 540, fps, False, 0.625), tmp)
@@ -904,18 +988,19 @@ def linkedin_scenes():
             "problem",
         ),
         replay_scene(
-            "forest_winter",
-            1002,
+            "urban_collapse",
+            URBAN_SEED,
             ["greedy_bayes", "trecsar"],
             20.0,
-            "Same forest. Same missing person.",
-            "Replays of recorded simulation runs · purple = where the "
-            "person may be · dashed = radio coverage · ▲ relay · ■ command post · × person",
-            "replay_forest",
-            sub="Winter night, boreal forest  ·  simulation",
+            "Same block. Same casualty. A third of the relays.",
+            "Replays of recorded simulation runs · purple = where people may be · dashed = radio coverage · "
+            "▲ relay · ■ command post · × person",
+            "replay_urban",
+            sub="City block after an earthquake  ·  simulation",
+            terrain=URBAN_TERRAIN,
         ),
         results_scene(["greedy_bayes", "trecsar"], 8.0, "results"),
-        calibration_scene(7.5),
+        europe_scene(8.5),
         sim3d_scene(8.0),
         text_scene(
             [
@@ -969,21 +1054,22 @@ def github_scenes():
         ),
         how_scene(13.0),
         replay_scene(
-            "forest_winter",
-            1002,
+            "urban_collapse",
+            URBAN_SEED,
             ["greedy_bayes", "trecsar"],
-            24.0,
-            "Scenario 1 · winter forest, missing elderly person",
+            22.0,
+            "Scenario 1 · city block after an earthquake",
             "Recorded simulation runs, same casualty and detection luck for both · purple = probability map · "
             "dashed = radio coverage · ▲ relay · ■ command post · × person (unknown to the robot)",
-            "replay_forest",
+            "replay_urban",
+            terrain=URBAN_TERRAIN,
         ),
         replay_scene(
             "tunnel",
             1003,
             ["greedy_bayes", "trecsar"],
             17.0,
-            "Scenario 2 · tunnel network after a rock fall",
+            "Scenario 2 · mine tunnels after a rock fall (the terrain used for tuning)",
             "No GPS, radio stops at the first bend. TREC-SAR reports with zero relays here by planning a "
             "short link-loss window — at the cost of minutes without live video.",
             "replay_tunnel",
@@ -994,8 +1080,8 @@ def github_scenes():
             ["greedy_bayes", "trecsar"],
             14.0,
             "Scenario 3 · chemical release at an industrial site",
-            "This seed shows a failure of link-unaware search behind steel tanks. Across 200 runs the methods differ "
-            "less here: 96 % vs 98 % success.",
+            "One mission where reactive relays fail behind steel tanks. It is not typical: across 200 held-out "
+            "runs both policies report 98 %.",
             "replay_hazmat",
         ),
         results_scene(["lawnmower", "greedy_bayes", "greedy_sf", "trecsar"], 12.0, "results"),
@@ -1003,7 +1089,8 @@ def github_scenes():
             [
                 ("What the ablation shows", 30, INK, "bold", 0.82, 0.0),
                 (
-                    "•  Planning the link loss is the big win: forest success rises from about 40 % to about 60 %.",
+                    "•  With enough relays and a correct radio model, every probability-driven policy finds the same "
+                    "share of people: 73–74 % in the forest.",
                     20,
                     INK,
                     "normal",
@@ -1011,8 +1098,8 @@ def github_scenes():
                     0.1,
                 ),
                 (
-                    "•  Probability-driven relay placement then reaches the same success with about half the relays "
-                    "in the forest and about 90 % fewer in the tunnel.",
+                    "•  TREC-SAR reaches that success with half the relays in the forest and about a third in the "
+                    "tunnels and the earthquake block.",
                     20,
                     INK,
                     "normal",
@@ -1020,7 +1107,8 @@ def github_scenes():
                     0.25,
                 ),
                 (
-                    "•  The price is more time without live video. That is an operator's trade-off, so it is a tunable weight.",
+                    "•  Planning the link loss matters when relays are scarce or the radio is worse than planned. "
+                    "The price is more time without live video.",
                     20,
                     INK,
                     "normal",
@@ -1028,7 +1116,8 @@ def github_scenes():
                     0.4,
                 ),
                 (
-                    "•  In the open industrial site all probability-driven methods perform the same.",
+                    "•  An earlier version reported a 40 % → 60 % forest gain. That was the tuning terrain; it did not "
+                    "hold on new terrains and was withdrawn.",
                     20,
                     INK2,
                     "normal",
@@ -1044,13 +1133,14 @@ def github_scenes():
             1089,
             ["trecsar", "trecsar_cal"],
             20.0,
-            "New in 0.2 · the radio is 1.8x worse than planned",
+            "When the radio is 1.8x worse than planned",
             "Same mission and luck. Left keeps the radio model it started with and keeps hitting the failsafe; "
             "right refits it from signal readings. Dashed = coverage the radios really achieve.",
             "replay_calibration",
-            sub="Winter forest, wet snow on spruce  ·  a typical seed (near the medians below)",
+            sub="Winter forest, wet snow on spruce  ·  one recorded mission",
         ),
         calibration_scene(9.0),
+        europe_scene(11.0),
         sim3d_scene(12.0),
         text_scene(
             [
@@ -1064,7 +1154,7 @@ def github_scenes():
                     0.1,
                 ),
                 (
-                    "•  Tuned on seeds 100–159, evaluated on 1000–1199, with 95 % confidence intervals.",
+                    "•  Tuned on one terrain per scenario; evaluated on 8 others with held-out casualties and 95 % intervals.",
                     19,
                     INK2,
                     "normal",
